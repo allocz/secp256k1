@@ -50,8 +50,8 @@ const (
 
 // Signature is a type representing an ECDSA signature.
 type Signature struct {
-	r secp256k1.ModNScalar
-	s secp256k1.ModNScalar
+	Rs secp256k1.ModNScalar
+	Ss secp256k1.ModNScalar
 }
 
 // NewSignature instantiates a new signature given some r and s values.
@@ -61,12 +61,12 @@ func NewSignature(r, s *secp256k1.ModNScalar) *Signature {
 
 // R returns the r value of the signature.
 func (sig *Signature) R() secp256k1.ModNScalar {
-	return sig.r
+	return sig.Rs
 }
 
 // S returns the s value of the signature.
 func (sig *Signature) S() secp256k1.ModNScalar {
-	return sig.s
+	return sig.Ss
 }
 
 // Serialize returns the ECDSA signature in the Distinguished Encoding Rules
@@ -99,7 +99,7 @@ func (sig *Signature) Serialize() []byte {
 	// order of the group because both S and its negation are valid signatures
 	// modulo the order, so this forces a consistent choice to reduce signature
 	// malleability.
-	sigS := new(secp256k1.ModNScalar).Set(&sig.s)
+	sigS := new(secp256k1.ModNScalar).Set(&sig.Ss)
 	if sigS.IsOverHalfOrder() {
 		sigS.Negate()
 	}
@@ -109,7 +109,7 @@ func (sig *Signature) Serialize() []byte {
 	// used to ensure it is canonical per DER and will be stripped if needed
 	// below.
 	var rBuf, sBuf [33]byte
-	sig.r.PutBytesUnchecked(rBuf[1:33])
+	sig.Rs.PutBytesUnchecked(rBuf[1:33])
 	sigS.PutBytesUnchecked(sBuf[1:33])
 
 	// Ensure the encoded bytes for the R and S components are canonical per DER
@@ -230,7 +230,7 @@ func (sig *Signature) Verify(hash []byte, pubKey *secp256k1.PublicKey) bool {
 	// Step 1.
 	//
 	// Fail if R and S are not in [1, N-1].
-	if sig.r.IsZero() || sig.s.IsZero() {
+	if sig.Rs.IsZero() || sig.Ss.IsZero() {
 		return false
 	}
 
@@ -243,14 +243,14 @@ func (sig *Signature) Verify(hash []byte, pubKey *secp256k1.PublicKey) bool {
 	// Step 3.
 	//
 	// w = S^-1 mod N
-	w := new(secp256k1.ModNScalar).InverseValNonConst(&sig.s)
+	w := new(secp256k1.ModNScalar).InverseValNonConst(&sig.Ss)
 
 	// Step 4.
 	//
 	// u1 = e * w mod N
 	// u2 = R * w mod N
 	u1 := new(secp256k1.ModNScalar).Mul2(&e, w)
-	u2 := new(secp256k1.ModNScalar).Mul2(&sig.r, w)
+	u2 := new(secp256k1.ModNScalar).Mul2(&sig.Rs, w)
 
 	// Step 5.
 	//
@@ -276,7 +276,7 @@ func (sig *Signature) Verify(hash []byte, pubKey *secp256k1.PublicKey) bool {
 	// Step 8.
 	//
 	// Verified if R * z == X.x (mod P)
-	sigRModP := modNScalarToField(&sig.r)
+	sigRModP := modNScalarToField(&sig.Rs)
 	result := new(secp256k1.FieldVal).Mul2(&sigRModP, z).Normalize()
 	if result.Equals(&X.X) {
 		return true
@@ -301,7 +301,7 @@ func (sig *Signature) Verify(hash []byte, pubKey *secp256k1.PublicKey) bool {
 // both Signatures are equivalent.  A signature is equivalent to another, if
 // they both have the same scalar value for R and S.
 func (sig *Signature) IsEqual(otherSig *Signature) bool {
-	return sig.r.Equals(&otherSig.r) && sig.s.Equals(&otherSig.s)
+	return sig.Rs.Equals(&otherSig.Rs) && sig.Ss.Equals(&otherSig.Ss)
 }
 
 // ParseDERSignature parses a signature in the Distinguished Encoding Rules
@@ -784,8 +784,8 @@ func SignCompact(key *secp256k1.PrivateKey, hash []byte, isCompressedKey bool) [
 	// Output <compactSigRecoveryCode><32-byte R><32-byte S>.
 	var b [compactSigSize]byte
 	b[0] = compactSigRecoveryCode
-	sig.r.PutBytesUnchecked(b[1:33])
-	sig.s.PutBytesUnchecked(b[33:65])
+	sig.Rs.PutBytesUnchecked(b[1:33])
+	sig.Ss.PutBytesUnchecked(b[33:65])
 	return b[:]
 }
 

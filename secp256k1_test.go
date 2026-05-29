@@ -109,6 +109,38 @@ func BenchmarkECDSASignatureToBytes(b *testing.B) {
 	}
 }
 
+func BenchmarkECDSASign(b *testing.B) {
+	var sigb [64]byte
+	var sig ECDSASignature
+	var priv PrivateKey
+	PrivateKeyFromBytes(&priv, rov.privb[:])
+
+	for b.Loop() {
+		ECDSASign(&sig, &priv, rov.msghash[:])
+	}
+
+	ECDSASignatureToBytes(sigb[:], &sig)
+	if !bytes.Equal(rov.sigb[:], sigb[:]) {
+		b.Errorf("serialized signatures do not match")
+	}
+}
+
+func BenchmarkECDSAVerify(b *testing.B) {
+	var sig ECDSASignature
+	var pub PublicKey
+	var ok bool
+	ECDSASignatureFromBytes(&sig, rov.sigb[:])
+	PublicKeyFromBytes(&pub, rov.pubb[:])
+
+	for b.Loop() {
+		ok = ECDSAVerify(&sig, &pub, rov.msghash[:])
+	}
+
+	if !ok {
+		b.Errorf("unexpected invalid sig")
+	}
+}
+
 var rov = initROVars()
 
 type roVars struct {

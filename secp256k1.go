@@ -35,3 +35,11 @@ func ECDSASignatureFromBytes(sig *ECDSASignature, data []byte) {
 func ECDSASignatureToBytes(data []byte, sig *ECDSASignature) {
 	gosecp.ECDSASignatureToBytes(data, sig)
 }
+
+func ECDSASign(sig *ECDSASignature, priv *PrivateKey, hash []byte) {
+	gosecp.ECDSASign(sig, priv, hash)
+}
+
+func ECDSAVerify(sig *ECDSASignature, pub *PublicKey, hash []byte) bool {
+	return gosecp.ECDSAVerify(sig, pub, hash)
+}

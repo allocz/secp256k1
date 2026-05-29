@@ -67,8 +67,8 @@ const (
 // uncompressed and compressed SEC (Standards for Efficient Cryptography)
 // formats.
 type PublicKey struct {
-	x FieldVal
-	y FieldVal
+	Xf FieldVal
+	Yf FieldVal
 }
 
 // NewPublicKey instantiates a new public key with the given x and y
@@ -80,8 +80,8 @@ type PublicKey struct {
 // can be used to determine validity.
 func NewPublicKey(x, y *FieldVal) *PublicKey {
 	var pubKey PublicKey
-	pubKey.x.Set(x)
-	pubKey.y.Set(y)
+	pubKey.Xf.Set(x)
+	pubKey.Yf.Set(y)
 	return &pubKey
 }
 
@@ -193,8 +193,8 @@ func (p PublicKey) SerializeUncompressed() []byte {
 	// 0x04 || 32-byte x coordinate || 32-byte y coordinate
 	var b [PubKeyBytesLenUncompressed]byte
 	b[0] = PubKeyFormatUncompressed
-	p.x.PutBytesUnchecked(b[1:33])
-	p.y.PutBytesUnchecked(b[33:65])
+	p.Xf.PutBytesUnchecked(b[1:33])
+	p.Yf.PutBytesUnchecked(b[33:65])
 	return b[:]
 }
 
@@ -202,14 +202,14 @@ func (p PublicKey) SerializeUncompressed() []byte {
 func (p PublicKey) SerializeCompressed() []byte {
 	// Choose the format byte depending on the oddness of the Y coordinate.
 	format := PubKeyFormatCompressedEven
-	if p.y.IsOdd() {
+	if p.Yf.IsOdd() {
 		format = PubKeyFormatCompressedOdd
 	}
 
 	// 0x02 or 0x03 || 32-byte x coordinate
 	var b [PubKeyBytesLenCompressed]byte
 	b[0] = format
-	p.x.PutBytesUnchecked(b[1:33])
+	p.Xf.PutBytesUnchecked(b[1:33])
 	return b[:]
 }
 
@@ -217,20 +217,20 @@ func (p PublicKey) SerializeCompressed() []byte {
 // if both public keys are equivalent.  A public key is equivalent to another,
 // if they both have the same X and Y coordinates.
 func (p *PublicKey) IsEqual(otherPubKey *PublicKey) bool {
-	return p.x.Equals(&otherPubKey.x) && p.y.Equals(&otherPubKey.y)
+	return p.Xf.Equals(&otherPubKey.Xf) && p.Yf.Equals(&otherPubKey.Yf)
 }
 
 // AsJacobian converts the public key into a Jacobian point with Z=1 and stores
 // the result in the provided result param.  This allows the public key to be
 // treated a Jacobian point in the secp256k1 group in calculations.
 func (p *PublicKey) AsJacobian(result *JacobianPoint) {
-	result.X.Set(&p.x)
-	result.Y.Set(&p.y)
+	result.X.Set(&p.Xf)
+	result.Y.Set(&p.Yf)
 	result.Z.SetInt(1)
 }
 
 // IsOnCurve returns whether or not the public key represents a point on the
 // secp256k1 curve.
 func (p *PublicKey) IsOnCurve() bool {
-	return isOnCurve(&p.x, &p.y)
+	return isOnCurve(&p.Xf, &p.Yf)
 }

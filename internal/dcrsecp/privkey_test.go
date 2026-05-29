@@ -21,7 +21,7 @@ func TestGeneratePrivateKey(t *testing.T) {
 		return
 	}
 	pub := priv.PubKey()
-	if !isOnCurve(&pub.x, &pub.y) {
+	if !isOnCurve(&pub.Xf, &pub.Yf) {
 		t.Error("public key is not on the curve")
 	}
 }
@@ -35,7 +35,7 @@ func TestGeneratePrivateKeyFromRand(t *testing.T) {
 		return
 	}
 	pub := priv.PubKey()
-	if !isOnCurve(&pub.x, &pub.y) {
+	if !isOnCurve(&pub.Xf, &pub.Yf) {
 		t.Error("public key is not on the curve")
 	}
 }

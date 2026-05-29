@@ -217,14 +217,14 @@ func TestParsePubKey(t *testing.T) {
 		// Ensure the x and y coordinates match the expected values upon
 		// successful parse.
 		wantX, wantY := hexToFieldVal(test.wantX), hexToFieldVal(test.wantY)
-		if !pubKey.x.Equals(wantX) {
+		if !pubKey.Xf.Equals(wantX) {
 			t.Errorf("%s: mismatched x coordinate -- got %v, want %v",
-				test.name, pubKey.x, wantX)
+				test.name, pubKey.Xf, wantX)
 			continue
 		}
-		if !pubKey.y.Equals(wantY) {
+		if !pubKey.Yf.Equals(wantY) {
 			t.Errorf("%s: mismatched y coordinate -- got %v, want %v",
-				test.name, pubKey.y, wantY)
+				test.name, pubKey.Yf, wantY)
 			continue
 		}
 	}
@@ -339,30 +339,30 @@ func TestPubKeySerialize(t *testing.T) {
 // works as expected.
 func TestPublicKeyIsEqual(t *testing.T) {
 	pubKey1 := &PublicKey{
-		x: *hexToFieldVal("2689c7c2dab13309fb143e0e8fe396342521887e976690b6b47f5b2a4b7d448e"),
-		y: *hexToFieldVal("499dd7852849a38aa23ed9f306f07794063fe7904e0f347bc209fdddaf37691f"),
+		Xf: *hexToFieldVal("2689c7c2dab13309fb143e0e8fe396342521887e976690b6b47f5b2a4b7d448e"),
+		Yf: *hexToFieldVal("499dd7852849a38aa23ed9f306f07794063fe7904e0f347bc209fdddaf37691f"),
 	}
 	pubKey1Copy := &PublicKey{
-		x: *hexToFieldVal("2689c7c2dab13309fb143e0e8fe396342521887e976690b6b47f5b2a4b7d448e"),
-		y: *hexToFieldVal("499dd7852849a38aa23ed9f306f07794063fe7904e0f347bc209fdddaf37691f"),
+		Xf: *hexToFieldVal("2689c7c2dab13309fb143e0e8fe396342521887e976690b6b47f5b2a4b7d448e"),
+		Yf: *hexToFieldVal("499dd7852849a38aa23ed9f306f07794063fe7904e0f347bc209fdddaf37691f"),
 	}
 	pubKey2 := &PublicKey{
-		x: *hexToFieldVal("ce0b14fb842b1ba549fdd675c98075f12e9c510f8ef52bd021a9a1f4809d3b4d"),
-		y: *hexToFieldVal("0890ff84d7999d878a57bee170e19ef4b4803b4bdede64503a6ac352b03c8032"),
+		Xf: *hexToFieldVal("ce0b14fb842b1ba549fdd675c98075f12e9c510f8ef52bd021a9a1f4809d3b4d"),
+		Yf: *hexToFieldVal("0890ff84d7999d878a57bee170e19ef4b4803b4bdede64503a6ac352b03c8032"),
 	}
 
 	if !pubKey1.IsEqual(pubKey1) {
-		t.Fatalf("bad self public key equality check: (%v, %v)", pubKey1.x,
-			pubKey1.y)
+		t.Fatalf("bad self public key equality check: (%v, %v)", pubKey1.Xf,
+			pubKey1.Yf)
 	}
 	if !pubKey1.IsEqual(pubKey1Copy) {
 		t.Fatalf("bad public key equality check: (%v, %v) == (%v, %v)",
-			pubKey1.x, pubKey1.y, pubKey1Copy.x, pubKey1Copy.y)
+			pubKey1.Xf, pubKey1.Yf, pubKey1Copy.Xf, pubKey1Copy.Yf)
 	}
 
 	if pubKey1.IsEqual(pubKey2) {
 		t.Fatalf("bad public key equality check: (%v, %v) != (%v, %v)",
-			pubKey1.x, pubKey1.y, pubKey2.x, pubKey2.y)
+			pubKey1.Xf, pubKey1.Yf, pubKey2.Xf, pubKey2.Yf)
 	}
 }
 

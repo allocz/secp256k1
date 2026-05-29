@@ -48,3 +48,11 @@ func ECDSASignatureToBytes(data []byte, sig *ECDSASignature) {
 	sig.r.PutBytesUnchecked(data)
 	sig.s.PutBytesUnchecked(data[32:])
 }
+
+func ECDSASign(sig *ECDSASignature, priv *PrivateKey, hash []byte) {
+	ecdsaSign(sig, priv, hash)
+}
+
+func ECDSAVerify(sig *ECDSASignature, pub *PublicKey, hash []byte) bool {
+	return ecdsaVerify(sig, pub, hash)
+}
