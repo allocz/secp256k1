@@ -34,3 +34,17 @@ func PublicKeyFromPrivateKey(pub *PublicKey, priv *PrivateKey) {
 	secp.ScalarBaseMultNonConst(&priv.k, &pub.p)
 	pub.p.ToAffine()
 }
+
+type ECDSASignature struct {
+	r, s secp.ModNScalar
+}
+
+func ECDSASignatureFromBytes(sig *ECDSASignature, data []byte) {
+	sig.r.SetByteSlice(data[:32])
+	sig.s.SetByteSlice(data[32:])
+}
+
+func ECDSASignatureToBytes(data []byte, sig *ECDSASignature) {
+	sig.r.PutBytesUnchecked(data)
+	sig.s.PutBytesUnchecked(data[32:])
+}

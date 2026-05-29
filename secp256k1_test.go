@@ -81,6 +81,34 @@ func BenchmarkPublicKeyFromPrivateKey(b *testing.B) {
 	}
 }
 
+func BenchmarkECDSASignatureFromBytes(b *testing.B) {
+	var sigb [64]byte
+	var sig ECDSASignature
+
+	for b.Loop() {
+		ECDSASignatureFromBytes(&sig, rov.sigb[:])
+	}
+
+	ECDSASignatureToBytes(sigb[:], &sig)
+	if !bytes.Equal(rov.sigb[:], sigb[:]) {
+		b.Errorf("serialized signatures do not match")
+	}
+}
+
+func BenchmarkECDSASignatureToBytes(b *testing.B) {
+	var sigb [64]byte
+	var sig ECDSASignature
+	ECDSASignatureFromBytes(&sig, rov.sigb[:])
+
+	for b.Loop() {
+		ECDSASignatureToBytes(sigb[:], &sig)
+	}
+
+	if !bytes.Equal(rov.sigb[:], sigb[:]) {
+		b.Errorf("serialized signatures do not match")
+	}
+}
+
 var rov = initROVars()
 
 type roVars struct {

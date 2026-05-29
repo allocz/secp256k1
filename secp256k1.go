@@ -25,3 +25,13 @@ func PublicKeyToBytes(data []byte, pub *PublicKey) {
 func PublicKeyFromPrivateKey(pub *PublicKey, priv *PrivateKey) {
 	gosecp.PublicKeyFromPrivateKey(pub, priv)
 }
+
+type ECDSASignature = gosecp.ECDSASignature
+
+func ECDSASignatureFromBytes(sig *ECDSASignature, data []byte) {
+	gosecp.ECDSASignatureFromBytes(sig, data)
+}
+
+func ECDSASignatureToBytes(data []byte, sig *ECDSASignature) {
+	gosecp.ECDSASignatureToBytes(data, sig)
+}
