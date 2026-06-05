@@ -6,10 +6,10 @@
 package ecdsa_test
 
 import (
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 
-	"github.com/allocz/secp256k1/internal/dcrblake256"
 	"github.com/allocz/secp256k1/internal/dcrsecp"
 	"github.com/allocz/secp256k1/internal/dcrsecp/ecdsa"
 )
@@ -18,8 +18,7 @@ import (
 // is first parsed from raw bytes and serializing the generated signature.
 func ExampleSign() {
 	// Decode a hex-encoded private key.
-	pkBytes, err := hex.DecodeString("22a47fa09a223f2aa079edf85a7c2d4f87" +
-		"20ee63e502ee2869afab7de234b80c")
+	pkBytes, err := hex.DecodeString("22a47fa09a223f2aa079edf85a7c2d4f8720ee63e502ee2869afab7de234b80c")
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -28,7 +27,7 @@ func ExampleSign() {
 
 	// Sign a message using the private key.
 	message := "test message"
-	messageHash := blake256.Sum256([]byte(message))
+	messageHash := sha256.Sum256([]byte(message))
 	signature := ecdsa.Sign(privKey, messageHash[:])
 
 	// Serialize and display the signature.
@@ -40,7 +39,7 @@ func ExampleSign() {
 	fmt.Printf("Signature Verified? %v\n", verified)
 
 	// Output:
-	// Serialized Signature: 3045022100fcc0a8768cfbcefcf2cadd7cfb0fb18ed08dd2e2ae84bef1a474a3d351b26f0302200fc1a350b45f46fa00101391302818d748c2b22615511a3ffd5bb638bd777207
+	// Serialized Signature: 3045022100fa7cdbd9243b99889b033e88ae2ddf55cc189efd5ae64dfa77655f01fc48e8000220045ec2f0dfebc7891d31b40d1ed686ca0e33c7c1b1b693e0fb305e6fc4d84a6a
 	// Signature Verified? true
 }
 
@@ -49,8 +48,7 @@ func ExampleSign() {
 // raw bytes.
 func ExampleSignature_Verify() {
 	// Decode hex-encoded serialized public key.
-	pubKeyBytes, err := hex.DecodeString("02a673638cb9587cb68ea08dbef685c" +
-		"6f2d2a751a8b3c6f2a7e9a4999e6e4bfaf5")
+	pubKeyBytes, err := hex.DecodeString("02a673638cb9587cb68ea08dbef685c6f2d2a751a8b3c6f2a7e9a4999e6e4bfaf5")
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -62,9 +60,7 @@ func ExampleSignature_Verify() {
 	}
 
 	// Decode hex-encoded serialized signature.
-	sigBytes, err := hex.DecodeString("3045022100fcc0a8768cfbcefcf2cadd7cfb0" +
-		"fb18ed08dd2e2ae84bef1a474a3d351b26f0302200fc1a350b45f46fa0010139130" +
-		"2818d748c2b22615511a3ffd5bb638bd777207")
+	sigBytes, err := hex.DecodeString("3045022100fa7cdbd9243b99889b033e88ae2ddf55cc189efd5ae64dfa77655f01fc48e8000220045ec2f0dfebc7891d31b40d1ed686ca0e33c7c1b1b693e0fb305e6fc4d84a6a")
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -77,7 +73,7 @@ func ExampleSignature_Verify() {
 
 	// Verify the signature for the message using the public key.
 	message := "test message"
-	messageHash := blake256.Sum256([]byte(message))
+	messageHash := sha256.Sum256([]byte(message))
 	verified := signature.Verify(messageHash[:], pubKey)
 	fmt.Println("Signature Verified?", verified)
 

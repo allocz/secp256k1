@@ -7,13 +7,13 @@ package ecdsa
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"math/rand"
 	"testing"
 	"time"
 
-	"github.com/allocz/secp256k1/internal/dcrblake256"
 	"github.com/allocz/secp256k1/internal/dcrsecp"
 )
 
@@ -298,184 +298,184 @@ func signTests(t *testing.T) []signTest {
 	t.Helper()
 
 	tests := []signTest{{
-		name:     "key 0x1, blake256(0x01020304), rfc6979 nonce",
+		name:     "key 0x1, sha256(0x01020304), rfc6979 nonce",
 		key:      "0000000000000000000000000000000000000000000000000000000000000001",
 		msg:      "01020304",
-		hash:     "c301ba9de5d6053caad9f5eb46523f007702add2c62fa39de03146a36b8026b7",
-		nonce:    "4154324ecd4158938f1df8b5b659aeb639c7fbc36005934096e514af7d64bcc2",
+		hash:     "9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a",
+		nonce:    "de51033ff911a6e7f5dc196bec485ab9c923b5b2167c19d744dbc91fb1784668",
 		rfc6979:  true,
-		wantSigR: "c6c4137b0e5fbfc88ae3f293d7e80c8566c43ae20340075d44f75b009c943d09",
-		wantSigS: "00ba213513572e35943d5acdd17215561b03f11663192a7252196cc8b2a99560",
-		wantCode: 0,
+		wantSigR: "cb28623215297cda8872a5ad53dae1248ec3a7c049221c50b83f3cb3345f5f9b",
+		wantSigS: "0a27f166d1db71cc6b4fbd5303d79b5d1706ecec5474529dfa19195800492599",
+		wantCode: pubKeyRecoveryCodeOddnessBit,
 	}, {
-		name:     "key 0x1, blake256(0x01020304), random nonce",
+		name:     "key 0x1, sha256(0x01020304), random nonce",
 		key:      "0000000000000000000000000000000000000000000000000000000000000001",
 		msg:      "01020304",
-		hash:     "c301ba9de5d6053caad9f5eb46523f007702add2c62fa39de03146a36b8026b7",
+		hash:     "9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a",
 		nonce:    "a6df66500afeb7711d4c8e2220960855d940a5ed57260d2c98fbf6066cca283e",
 		rfc6979:  false,
 		wantSigR: "b073759a96a835b09b79e7b93c37fdbe48fb82b000c4a0e1404ba5d1fbc15d0a",
-		wantSigS: "7e34928a3e3832ec21e7711644d9388f7deb6340ead661d7056b0665974b87f3",
+		wantSigS: "1c2456f15bbbc27b8854e2aad5dee6ec1ee3b4f200f124c2a66fbaeb4f2103e8",
 		wantCode: pubKeyRecoveryCodeOddnessBit,
 	}, {
-		name:     "key 0x2, blake256(0x01020304), rfc6979 nonce",
+		name:     "key 0x2, sha256(0x01020304), rfc6979 nonce",
 		key:      "0000000000000000000000000000000000000000000000000000000000000002",
 		msg:      "01020304",
-		hash:     "c301ba9de5d6053caad9f5eb46523f007702add2c62fa39de03146a36b8026b7",
-		nonce:    "55f96f24cf7531f527edfe3b9222eca12d575367c32a7f593a828dc3651acf49",
+		hash:     "9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a",
+		nonce:    "c920fd1b7aac9d22465f8fa4d26ed998412496fe20f1f424dd957119c243b5bf",
 		rfc6979:  true,
-		wantSigR: "e6f137b52377250760cc702e19b7aee3c63b0e7d95a91939b14ab3b5c4771e59",
-		wantSigS: "44b9bc4620afa158b7efdfea5234ff2d5f2f78b42886f02cf581827ee55318ea",
+		wantSigR: "8e989e7de833caeb017354b215fca6d198357dce86623debf66ff85da70671b9",
+		wantSigS: "403d28ef2f82f58fc27afa2bfe828b8f4819d462a8f7f257c2c1a99ca42efd4b",
 		wantCode: pubKeyRecoveryCodeOddnessBit,
 	}, {
-		name:     "key 0x2, blake256(0x01020304), random nonce",
+		name:     "key 0x2, sha256(0x01020304), random nonce",
 		key:      "0000000000000000000000000000000000000000000000000000000000000002",
 		msg:      "01020304",
-		hash:     "c301ba9de5d6053caad9f5eb46523f007702add2c62fa39de03146a36b8026b7",
+		hash:     "9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a",
 		nonce:    "679a6d36e7fe6c02d7668af86d78186e8f9ccc04371ac1c8c37939d1f5cae07a",
 		rfc6979:  false,
 		wantSigR: "4a090d82f48ca12d9e7aa24b5dcc187ee0db2920496f671d63e86036aaa7997e",
-		wantSigS: "261ffe8ba45007fc5fbbba6b4c6ed41beafb48b09fa8af1d6a3fbc6ccefbad",
-		wantCode: 0,
-	}, {
-		name:     "key 0x1, blake256(0x0102030405), rfc6979 nonce",
-		key:      "0000000000000000000000000000000000000000000000000000000000000001",
-		msg:      "0102030405",
-		hash:     "dc063eba3c8d52a159e725c1a161506f6cb6b53478ad5ef3f08d534efa871d9f",
-		nonce:    "aa87a543c68f2568bb107c9946afa5233bf94fb6a7a063544505282621021629",
-		rfc6979:  true,
-		wantSigR: "dda8308cdbda2edf51ccf598b42b42b19597e102eb2ed4a04a16dd57084d3b40",
-		wantSigS: "0b6d67bab4929624e28f690407a15efc551354544fdc179970ff401eec2e5dc9",
+		wantSigS: "3cf2b5379aefa444259f33acc09c6359a7c19e1d37f65c55615b117eb2b37154",
 		wantCode: pubKeyRecoveryCodeOddnessBit,
 	}, {
-		name:     "key 0x1, blake256(0x0102030405), random nonce",
+		name:     "key 0x1, sha256(0x0102030405), rfc6979 nonce",
 		key:      "0000000000000000000000000000000000000000000000000000000000000001",
 		msg:      "0102030405",
-		hash:     "dc063eba3c8d52a159e725c1a161506f6cb6b53478ad5ef3f08d534efa871d9f",
+		hash:     "74f81fe167d99b4cb41d6d0ccda82278caee9f3e2f25d5e5a3936ff3dcec60d0",
+		nonce:    "cc6c36ac908777e5e8cb1a15d8a50377577edeeee0ae8138b4352b400cb7f7e0",
+		rfc6979:  true,
+		wantSigR: "a947fedb725f2873f711f2c679cfbd2c5d1da9fb3d3e1d6d92bcdb99ed907ec0",
+		wantSigS: "7bb7c665a32f5e072671e615a7d1d3535eb2965951622224ab138cd2d62837a3",
+		wantCode: pubKeyRecoveryCodeOddnessBit,
+	}, {
+		name:     "key 0x1, sha256(0x0102030405), random nonce",
+		key:      "0000000000000000000000000000000000000000000000000000000000000001",
+		msg:      "0102030405",
+		hash:     "74f81fe167d99b4cb41d6d0ccda82278caee9f3e2f25d5e5a3936ff3dcec60d0",
 		nonce:    "65f880c892fdb6e7f74f76b18c7c942cfd037ef9cf97c39c36e08bbc36b41616",
 		rfc6979:  false,
 		wantSigR: "72e5666f4e9d1099447b825cf737ee32112f17a67e2ca7017ae098da31dfbb8b",
-		wantSigS: "1a7326da661a62f66358dcf53300afdc8e8407939dae1192b5b0899b0254311b",
+		wantSigS: "33fee9f6ac0e18373d9b925116243e9dbcb8d414728a17bac590c77f9025455e",
 		wantCode: pubKeyRecoveryCodeOddnessBit,
 	}, {
-		name:     "key 0x2, blake256(0x0102030405), rfc6979 nonce",
+		name:     "key 0x2, sha256(0x0102030405), rfc6979 nonce",
 		key:      "0000000000000000000000000000000000000000000000000000000000000002",
 		msg:      "0102030405",
-		hash:     "dc063eba3c8d52a159e725c1a161506f6cb6b53478ad5ef3f08d534efa871d9f",
-		nonce:    "a13d652abd54b6e862548e5d12716df14dc192d93f3fa13536fdf4e56c54f233",
+		hash:     "74f81fe167d99b4cb41d6d0ccda82278caee9f3e2f25d5e5a3936ff3dcec60d0",
+		nonce:    "eea19542f880f9719136c1fdcaff9c021464816b2257d857ce6e0f268b67821d",
 		rfc6979:  true,
-		wantSigR: "122663fd29e41a132d3c8329cf05d61ebcca9351074cc277dcd868faba58d87d",
-		wantSigS: "353a44f2d949c04981e4e4d9c1f93a9e0644e63a5eaa188288c5ad68fd288d40",
-		wantCode: 0,
+		wantSigR: "456ac7a631501ae87e749f9d60786806677a87c32531fcbf58757957799f1d8a",
+		wantSigS: "32c624d4a2b2c31e3a622a79bf0b76f9a8a52d896a82708bad7447bb9a178168",
+		wantCode: pubKeyRecoveryCodeOddnessBit,
 	}, {
-		name:     "key 0x2, blake256(0x0102030405), random nonce",
+		name:     "key 0x2, sha256(0x0102030405), random nonce",
 		key:      "0000000000000000000000000000000000000000000000000000000000000002",
 		msg:      "0102030405",
-		hash:     "dc063eba3c8d52a159e725c1a161506f6cb6b53478ad5ef3f08d534efa871d9f",
+		hash:     "74f81fe167d99b4cb41d6d0ccda82278caee9f3e2f25d5e5a3936ff3dcec60d0",
 		nonce:    "026ece4cfb704733dd5eef7898e44c33bd5a0d749eb043f48705e40fa9e9afa0",
 		rfc6979:  false,
 		wantSigR: "3c4c5a2f217ea758113fd4e89eb756314dfad101a300f48e5bd764d3b6e0f8bf",
-		wantSigS: "6513e82442f133cb892514926ed9158328ead488ff1b027a31827603a65009df",
+		wantSigS: "1f6c2398b15ea7e8be3baad2b9eef51a5ce154d2e0bb2dde3f8ceda0ad9160d7",
 		wantCode: pubKeyRecoveryCodeOddnessBit,
 	}, {
-		name:     "random key 1, blake256(0x01), rfc6979 nonce",
+		name:     "random key 1, sha256(0x01), rfc6979 nonce",
 		key:      "a1becef2069444a9dc6331c3247e113c3ee142edda683db8643f9cb0af7cbe33",
 		msg:      "01",
-		hash:     "4a6c419a1e25c85327115c4ace586decddfe2990ed8f3d4d801871158338501d",
-		nonce:    "edb3a01063a0c6ccfc0d77295077cbd322cf364bfa64b7eeea3b20305135d444",
+		hash:     "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+		nonce:    "4f278b0247d2cba34b114085c3eb6ce0352312ffb81ade0cc8bfef0e395f0345",
 		rfc6979:  true,
-		wantSigR: "ef392791d87afca8256c4c9c68d981248ee34a09069f50fa8dfc19ae34cd92ce",
-		wantSigS: "0a2b9cb69fd794f7f204c272293b8585a294916a21a11fd94ec04acae2dc6d21",
-		wantCode: 0,
+		wantSigR: "b885a6d84887854be35798f310a817f87215678a8309f198ffffe2ba11683447",
+		wantSigS: "1c46239e91f1be44f1b9678b245921b79abd5048a88390cda4763861c2d2f71b",
+		wantCode: pubKeyRecoveryCodeOddnessBit,
 	}, {
-		name:     "random key 2, blake256(0x02), rfc6979 nonce",
+		name:     "random key 2, sha256(0x02), rfc6979 nonce",
 		key:      "59930b76d4b15767ec0e8c8e5812aa2e57db30c6af7963e2a6295ba02af5416b",
 		msg:      "02",
-		hash:     "49af37ab5270015fe25276ea5a3bb159d852943df23919522a202205fb7d175c",
-		nonce:    "af2a59085976494567ef0fc2ecede587b2d1d8e9898cc46e72d7f3e33156e057",
+		hash:     "dbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986",
+		nonce:    "16e17a66e66f068e419e55624adcfc0ebd1b982a24735eec4a5160b97ee9cb40",
 		rfc6979:  true,
-		wantSigR: "886c9cccb356b3e1deafef2c276a4f8717ab73c1244c3f673cfbff5897de0e06",
-		wantSigS: "609394185495f978ae84b69be90c69947e5dd8dcb4726da604fcbd139d81fc55",
+		wantSigR: "ff943d543372babd062dbee31d75678b90c2af8be2234eb942b544b78773cde9",
+		wantSigS: "296df6cef1906ddec34638bc43ad36d0f59ef6045729cde6b1ba379a94ff9c4d",
 		wantCode: 0,
 	}, {
-		name:     "random key 3, blake256(0x03), rfc6979 nonce",
+		name:     "random key 3, sha256(0x03), rfc6979 nonce",
 		key:      "c5b205c36bb7497d242e96ec19a2a4f086d8daa919135cf490d2b7c0230f0e91",
 		msg:      "03",
-		hash:     "b706d561742ad3671703c247eb927ee8a386369c79644131cdeb2c5c26bf6c5d",
-		nonce:    "82d82b696a386d6d7a111c4cb943bfd39de8e5f6195e7eed9d3edb40fe1419fa",
+		hash:     "084fed08b978af4d7d196a7446a86b58009e636b611db16211b65a9aadff29c5",
+		nonce:    "0ad861c4c68058ab427e1e93f901e3a0243faab7116e0f1b9fdfb08c9944d1a3",
 		rfc6979:  true,
-		wantSigR: "6589d5950cec1fe2e7e20593b5ffa3556de20c176720a1796aa77a0cec1ec5a7",
-		wantSigS: "2a26deba3241de852e786f5b4e2b98d3efb958d91fe9773b331dbcca9e8be800",
-		wantCode: 0,
+		wantSigR: "ee30685ad28292a6efde51c6c522af06b5b3cb1f3639a44999790745a453501b",
+		wantSigS: "688df91f64698a32ac02325b33c7199809659359814ed33b51a031552d37c106",
+		wantCode: pubKeyRecoveryCodeOddnessBit,
 	}, {
-		name:     "random key 4, blake256(0x04), rfc6979 nonce",
+		name:     "random key 4, sha256(0x04), rfc6979 nonce",
 		key:      "65b46d4eb001c649a86309286aaf94b18386effe62c2e1586d9b1898ccf0099b",
 		msg:      "04",
-		hash:     "4c6eb9e38415034f4c93d3304d10bef38bf0ad420eefd0f72f940f11c5857786",
-		nonce:    "7afd696a9e770961d2b2eaec77ab7c22c734886fa57bc4a50a9f1946168cd06f",
+		hash:     "e52d9c508c502347344d8c07ad91cbd6068afc75ff6292f062a09ca381c89e71",
+		nonce:    "ec72e3784388d9db6121055d8a29b6ac3dfcb072702ffd06676646d206a8ee34",
 		rfc6979:  true,
-		wantSigR: "81db1d6dca08819ad936d3284a359091e57c036648d477b96af9d8326965a7d1",
-		wantSigS: "1bdf719c4be69351ba7617a187ac246912101aea4b5a7d6dfc234478622b43c6",
-		wantCode: pubKeyRecoveryCodeOddnessBit,
+		wantSigR: "b409239bf64355739f86f832aeb4653d17fe8a2c8345554c9510c26226d279d7",
+		wantSigS: "58288654fd273c9727d46d5b24ab050e91a7dd7acbb0c3d5b294b4dc7b592ecb",
+		wantCode: 0,
 	}, {
-		name:     "random key 5, blake256(0x05), rfc6979 nonce",
+		name:     "random key 5, sha256(0x05), rfc6979 nonce",
 		key:      "915cb9ba4675de06a182088b182abcf79fa8ac989328212c6b866fa3ec2338f9",
 		msg:      "05",
-		hash:     "bdd15db13448905791a70b68137445e607cca06cc71c7a58b9b2e84a06c54d08",
-		nonce:    "2a6ae70ea5cf1b932331901d640ece54551f5f33bf9484d5f95c676b5612b527",
+		hash:     "e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db",
+		nonce:    "7d294918d3737f3b8b02585a4aae095395559ec93e09dc8131b45d669ac8fd1b",
 		rfc6979:  true,
-		wantSigR: "47fd51aecbc743477cb59aa29d18d11d75fb206ae1cdd044216e4f294e33d5b6",
-		wantSigS: "3d50edc03066584d50b8d19d681865a23960b37502ede5bf452bdca56744334a",
-		wantCode: pubKeyRecoveryCodeOddnessBit,
+		wantSigR: "2e11d1671d1d2c5a669cfdff0a99bb4145101abf02811ef8a4d52cba73c1824f",
+		wantSigS: "5e84c656555ffdc9d495939e0b230cd9ef9ede0e4cd000ded72ecbcdcbd21825",
+		wantCode: 0,
 	}, {
-		name:     "random key 6, blake256(0x06), rfc6979 nonce",
+		name:     "random key 6, sha256(0x06), rfc6979 nonce",
 		key:      "93e9d81d818f08ba1f850c6dfb82256b035b42f7d43c1fe090804fb009aca441",
 		msg:      "06",
-		hash:     "19b7506ad9c189a9f8b063d2aee15953d335f5c88480f8515d7d848e7771c4ae",
-		nonce:    "0b847a0ae0cbe84dfca66621f04f04b0f2ec190dce10d43ba8c3915c0fcd90ed",
+		hash:     "67586e98fad27da0b9968bc039a1ef34c939b9b8e523a8bef89d478608c5ecf6",
+		nonce:    "c85ff40da56d4c5b7d6a994cce7bfb989cbe3aea322039ad9778a3e2837dd6bb",
 		rfc6979:  true,
-		wantSigR: "c99800bc7ac7ea11afe5d7a264f4c26edd63ae9c7ecd6d0d19992980bcda1d34",
-		wantSigS: "2844d4c9020ddf9e96b86c1a04788e0f371bd562291fd17ee017db46259d04fb",
+		wantSigR: "e78880dadcd8d090018854a46d2e114bcb3e45063ffb8cda1d5c75003a3f9c59",
+		wantSigS: "773c11abb814d1d011897a061fdf259073a67377bc48a7ee4a7e15047f734790",
 		wantCode: pubKeyRecoveryCodeOddnessBit,
 	}, {
-		name:     "random key 7, blake256(0x07), rfc6979 nonce",
+		name:     "random key 7, sha256(0x07), rfc6979 nonce",
 		key:      "c249bbd5f533672b7dcd514eb1256854783531c2b85fe60bf4ce6ea1f26afc2b",
 		msg:      "07",
-		hash:     "53d661e71e47a0a7e416591200175122d83f8af31be6a70af7417ad6f54d0038",
-		nonce:    "0f8e20694fe766d7b79e5ac141e3542f2f3c3d2cc6d0f60e0ec263a46dbe6d49",
+		hash:     "ca358758f6d27e6cf45272937977a748fd88391db679ceda7dc7bf1f005ee879",
+		nonce:    "8462d760475e6ea4143694c2dd4dd866e907b6d725388a164db1cc0d17b2039d",
 		rfc6979:  true,
-		wantSigR: "7a57a5222fb7d615eaa0041193f682262cebfa9b448f9c519d3644d0a3348521",
-		wantSigS: "574923b7b5aec66b62f1589002db29342c9f5ed56d5e80f5361c0307ff1561fa",
+		wantSigR: "df7e42ec34eacb93da860bdd65b45b8db000e73ee58fa47924d796de20b03321",
+		wantSigS: "082b4f65bd7290c27c78d66eeda09ed546a9d84a526c12accec581610a223e58",
 		wantCode: 0,
 	}, {
-		name:     "random key 8, blake256(0x08), rfc6979 nonce",
+		name:     "random key 8, sha256(0x08), rfc6979 nonce",
 		key:      "ec0be92fcec66cf1f97b5c39f83dfd4ddcad0dad468d3685b5eec556c6290bcc",
 		msg:      "08",
-		hash:     "9bff7982eab6f7883322edf7bdc86a23c87ca1c07906fbb1584f57b197dc6253",
-		nonce:    "ab7df49257d18f5f1b730cc7448f46bd82eb43e6e220f521fa7d23802310e24d",
+		hash:     "beead77994cf573341ec17b58bbf7eb34d2711c993c1d976b128b3188dc1829a",
+		nonce:    "31ea25a68a8be460734649fa4c8e237d121e90d506d97c15e6fd8ffbad21ed8b",
 		rfc6979:  true,
-		wantSigR: "64f90b09c8b1763a3eeefd156e5d312f80a98c24017811c0163b1c0b01323668",
-		wantSigS: "7d7bf4ff295ecfc9578eadc8378b0eea0c0362ad083b0fd1c9b3c06f4537f6ff",
+		wantSigR: "bafcbfc24c4639923942700ca20be26911c3c6784ab862a32c5cd4c9e2a44607",
+		wantSigS: "1e55ef49cf412258e355b762adbd65ab0e48bfaabc0e8fa2b033e544812a60bd",
 		wantCode: pubKeyRecoveryCodeOddnessBit,
 	}, {
-		name:     "random key 9, blake256(0x09), rfc6979 nonce",
+		name:     "random key 9, sha256(0x09), rfc6979 nonce",
 		key:      "6847b071a7cba6a85099b26a9c3e57a964e4990620e1e1c346fecc4472c4d834",
 		msg:      "09",
-		hash:     "4c2231813064f8500edae05b40195416bd543fd3e76c16d6efb10c816d92e8b6",
-		nonce:    "48ea6c907e1cda596048d812439ccf416eece9a7de400c8a0e40bd48eb7e613a",
+		hash:     "2b4c342f5433ebe591a1da77e013d1b72475562d48578dca8b84bac6651c3cb9",
+		nonce:    "c1dae7fc60d4b06dc9a1bab3479b2871ec42404168bb8b6bc9a99ec1d2b55c4e",
 		rfc6979:  true,
-		wantSigR: "81fc600775d3cdcaa14f8629537299b8226a0c8bfce9320ce64a8d14e3f95bae",
-		wantSigS: "3607997d36b48bce957ae9b3d450e0969f6269554312a82bf9499efc8280ea6d",
+		wantSigR: "7d16755df5b184c43e4c34dce670ad238a19a2d40aa857c3a9ffb4d01915ac1c",
+		wantSigS: "77d345e51bdab5f07c99400c36a5d0547b5d04d016e8a2bc7559ef613b57894f",
 		wantCode: 0,
 	}, {
-		name:     "random key 10, blake256(0x0a), rfc6979 nonce",
+		name:     "random key 10, sha256(0x0a), rfc6979 nonce",
 		key:      "b7548540f52fe20c161a0d623097f827608c56023f50442cc00cc50ad674f6b5",
 		msg:      "0a",
-		hash:     "e81db4f0d76e02805155441f50c861a8f86374f3ae34c7a3ff4111d3a634ecb1",
-		nonce:    "95c07e315cd5457e84270ca01019563c8eeaffb18ab4f23e88a44a0ff01c5f6f",
+		hash:     "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+		nonce:    "6e3033e7f9799ca5d02f991c3139bc1201ff46e5ae735ee9386bcf65e700c457",
 		rfc6979:  true,
-		wantSigR: "0d4cbf2da84f7448b083fce9b9c4e1834b5e2e98defcec7ec87e87c739f5fe78",
-		wantSigS: "0997db60683e12b4494702347fc7ae7f599e5a95c629c146e0fc615a1a2acac5",
+		wantSigR: "731ee8d5dd0f677684b30e8cd34ecc2708e026a4c40277b42334bfbd887b6ba1",
+		wantSigS: "38474db7b3a4cd5cabbdc54599811747144ce18e6dcfaadb0702453bc06a17d3",
 		wantCode: pubKeyRecoveryCodeOddnessBit,
 	}}
 
@@ -488,7 +488,7 @@ func signTests(t *testing.T) []signTest {
 		msg := hexToBytes(test.msg)
 		hash := hexToBytes(test.hash)
 
-		calcHash := blake256.Sum256(msg)
+		calcHash := sha256.Sum256(msg)
 		if !bytes.Equal(calcHash[:], hash) {
 			t.Errorf("%s: mismatched test hash -- expected: %x, given: %x",
 				test.name, calcHash[:], hash)
@@ -862,14 +862,14 @@ func TestRecoverCompactErrors(t *testing.T) {
 		hash: "c301ba9de5d6053caad9f5eb46523f007702add2c62fa39de03146a36b8026b7",
 		err:  ErrSigInvalidLen,
 	}, {
-		// Signature created from private key 0x02, blake256(0x01020304).
+		// Signature created from private key 0x02, sha256(0x01020304).
 		name: "no compact sig recovery code (otherwise valid sig)",
 		sig: "e6f137b52377250760cc702e19b7aee3c63b0e7d95a91939b14ab3b5c4771e59" +
 			"44b9bc4620afa158b7efdfea5234ff2d5f2f78b42886f02cf581827ee55318ea",
 		hash: "c301ba9de5d6053caad9f5eb46523f007702add2c62fa39de03146a36b8026b7",
 		err:  ErrSigInvalidLen,
 	}, {
-		// Signature created from private key 0x02, blake256(0x01020304).
+		// Signature created from private key 0x02, sha256(0x01020304).
 		name: "signature one byte too long (S padded with leading zero)",
 		sig: "1f" +
 			"e6f137b52377250760cc702e19b7aee3c63b0e7d95a91939b14ab3b5c4771e59" +
@@ -877,7 +877,7 @@ func TestRecoverCompactErrors(t *testing.T) {
 		hash: "c301ba9de5d6053caad9f5eb46523f007702add2c62fa39de03146a36b8026b7",
 		err:  ErrSigInvalidLen,
 	}, {
-		// Signature created from private key 0x02, blake256(0x01020304).
+		// Signature created from private key 0x02, sha256(0x01020304).
 		name: "compact sig recovery code too low (otherwise valid sig)",
 		sig: "1a" +
 			"e6f137b52377250760cc702e19b7aee3c63b0e7d95a91939b14ab3b5c4771e59" +
@@ -885,7 +885,7 @@ func TestRecoverCompactErrors(t *testing.T) {
 		hash: "c301ba9de5d6053caad9f5eb46523f007702add2c62fa39de03146a36b8026b7",
 		err:  ErrSigInvalidRecoveryCode,
 	}, {
-		// Signature created from private key 0x02, blake256(0x01020304).
+		// Signature created from private key 0x02, sha256(0x01020304).
 		name: "compact sig recovery code too high (otherwise valid sig)",
 		sig: "23" +
 			"e6f137b52377250760cc702e19b7aee3c63b0e7d95a91939b14ab3b5c4771e59" +
@@ -974,7 +974,7 @@ func TestRecoverCompactErrors(t *testing.T) {
 		hash: "c301ba9de5d6053caad9f5eb46523f007702add2c62fa39de03146a36b8026b7",
 		err:  ErrPointNotOnCurve,
 	}, {
-		// Signature created from private key 0x01, blake256(0x0102030407) over
+		// Signature created from private key 0x01, sha256(0x0102030407) over
 		// the secp256r1 curve (note the r1 instead of k1).
 		name: "pubkey not on the curve, signature valid for secp256r1 instead",
 		sig: "1f" +
@@ -983,7 +983,7 @@ func TestRecoverCompactErrors(t *testing.T) {
 		hash: "9165e957708bc95cf62d020769c150b2d7b08e7ab7981860815b1eaabd41d695",
 		err:  ErrPointNotOnCurve,
 	}, {
-		// Signature created from private key 0x01, blake256(0x01020304) and
+		// Signature created from private key 0x01, sha256(0x01020304) and
 		// manually setting s = -e*k^-1.
 		name: "calculated pubkey point at infinity",
 		sig: "1f" +
