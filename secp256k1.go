@@ -43,3 +43,33 @@ func ECDSASign(sig *ECDSASignature, priv *PrivateKey, hash []byte) {
 func ECDSAVerify(sig *ECDSASignature, pub *PublicKey, hash []byte) bool {
 	return gosecp.ECDSAVerify(sig, pub, hash)
 }
+
+type SchnorrSignature = gosecp.SchnorrSignature
+
+func SchnorrKeyPairFromBytes(priv *PrivateKey, pub *PublicKey,
+	data []byte) error {
+
+	gosecp.SchnorrKeyPairFromBytes(priv, pub, data)
+	return nil
+}
+
+func SchnorrPublicKeyFromBytes(pub *PublicKey, data []byte) error {
+	gosecp.SchnorrPublicKeyFromBytes(pub, data)
+	return nil
+}
+
+func SchnorrSignatureFromBytes(sig *SchnorrSignature,
+	data []byte) error {
+
+	return gosecp.SchnorrSignatureFromBytes(sig, data)
+}
+
+func SchnorrSign(sig *SchnorrSignature, priv *PrivateKey, msg []byte) error {
+	return SchnorrSignExt(sig, priv, msg, nil, false)
+}
+
+func SchnorrSignExt(sig *SchnorrSignature, priv *PrivateKey, msg []byte,
+	auxRand *[32]byte, fastSign bool) error {
+
+	return gosecp.SchnorrSignExt(sig, priv, msg, auxRand, fastSign)
+}
