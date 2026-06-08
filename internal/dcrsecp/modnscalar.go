@@ -7,6 +7,7 @@ package secp256k1
 import (
 	"encoding/hex"
 	"math/big"
+	"sync"
 )
 
 // References:
@@ -1053,6 +1054,27 @@ func (s *ModNScalar) Negate() *ModNScalar {
 	return s.NegateVal(s)
 }
 
+type intPool struct {
+	pool sync.Pool
+}
+
+func (i *intPool) Put(v *big.Int) {
+	v.SetInt64(0)
+	i.pool.Put(v)
+}
+
+func (i *intPool) Get() *big.Int {
+	return i.pool.Get().(*big.Int)
+}
+
+var intP = intPool{
+	pool: sync.Pool{
+		New: func() any {
+			return new(big.Int)
+		},
+	},
+}
+
 // InverseValNonConst finds the modular multiplicative inverse of the passed
 // scalar and stores result in s in *non-constant* time.
 //
@@ -1061,10 +1083,13 @@ func (s *ModNScalar) Negate() *ModNScalar {
 func (s *ModNScalar) InverseValNonConst(val *ModNScalar) *ModNScalar {
 	// This is making use of big integers for now.  Ideally it will be replaced
 	// with an implementation that does not depend on big integers.
-	valBytes := val.Bytes()
-	bigVal := new(big.Int).SetBytes(valBytes[:])
+	var valBytes [32]byte
+	val.PutBytes(&valBytes)
+	bigVal := intP.Get().SetBytes(valBytes[:])
 	bigVal.ModInverse(bigVal, curveParams.N)
-	s.SetByteSlice(bigVal.Bytes())
+	bigVal.FillBytes(valBytes[:])
+	s.SetBytes(&valBytes)
+	intP.Put(bigVal)
 	return s
 }
 

@@ -85,7 +85,8 @@ func BenchmarkSign(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		signRFC6979(privKey, msgHash)
+		var sig Signature
+		signRFC6979(&sig, privKey, msgHash)
 	}
 }
 
@@ -124,7 +125,8 @@ func BenchmarkNonceRFC6979(b *testing.B) {
 	b.ResetTimer()
 	var noElideNonce *secp256k1.ModNScalar
 	for i := 0; i < b.N; i++ {
-		noElideNonce = secp256k1.NonceRFC6979(privKey, msgHash, nil, nil, 0)
+		var noElideNonce secp256k1.ModNScalar
+		secp256k1.NonceRFC6979(&noElideNonce, privKey, msgHash, nil, nil, 0)
 	}
 	_ = noElideNonce
 }

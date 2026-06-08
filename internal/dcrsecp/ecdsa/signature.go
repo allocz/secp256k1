@@ -555,7 +555,9 @@ func ParseDERSignature(sig []byte) (*Signature, error) {
 // signing logic.  It differs in that it accepts a nonce to use when signing and
 // may not successfully produce a valid signature for the given nonce.  It is
 // primarily separated for testing purposes.
-func sign(privKey, nonce *secp256k1.ModNScalar, hash []byte) (*Signature, byte, bool) {
+func sign(sig *Signature, privKey, nonce *secp256k1.ModNScalar,
+	hash []byte) (byte, bool) {
+
 	// The algorithm for producing an ECDSA signature is given as algorithm 4.29
 	// in [GECC].
 	//
@@ -605,7 +607,7 @@ func sign(privKey, nonce *secp256k1.ModNScalar, hash []byte) (*Signature, byte, 
 	// Repeat from step 1 if r = 0
 	r, overflow := fieldToModNScalar(&kG.X)
 	if r.IsZero() {
-		return nil, 0, false
+		return 0, false
 	}
 
 	// Since the secp256k1 curve has a cofactor of 1, when recovering a
@@ -646,9 +648,10 @@ func sign(privKey, nonce *secp256k1.ModNScalar, hash []byte) (*Signature, byte, 
 	// Repeat from step 1 if s = 0
 	// s = -s if s > N/2
 	kinv := new(secp256k1.ModNScalar).InverseValNonConst(k)
-	s := new(secp256k1.ModNScalar).Mul2(privKey, &r).Add(&e).Mul(kinv)
+	var s secp256k1.ModNScalar
+	s.Mul2(privKey, &r).Add(&e).Mul(kinv)
 	if s.IsZero() {
-		return nil, 0, false
+		return 0, false
 	}
 	if s.IsOverHalfOrder() {
 		s.Negate()
@@ -663,13 +666,17 @@ func sign(privKey, nonce *secp256k1.ModNScalar, hash []byte) (*Signature, byte, 
 	// Step 6.
 	//
 	// Return (r,s)
-	return NewSignature(&r, s), pubKeyRecoveryCode, true
+	sig.Rs = r
+	sig.Ss = s
+	return pubKeyRecoveryCode, true
 }
 
 // signRFC6979 generates a deterministic ECDSA signature according to RFC 6979
 // and BIP0062 and returns it along with an additional public key recovery code
 // for efficiently recovering the public key from the signature.
-func signRFC6979(privKey *secp256k1.PrivateKey, hash []byte) (*Signature, byte) {
+func signRFC6979(sig *Signature, privKey *secp256k1.PrivateKey,
+	hash []byte) byte {
+
 	// The algorithm for producing an ECDSA signature is given as algorithm 4.29
 	// in [GECC].
 	//
@@ -710,16 +717,17 @@ func signRFC6979(privKey *secp256k1.PrivateKey, hash []byte) (*Signature, byte) 
 		//
 		// Generate a deterministic nonce in [1, N-1] parameterized by the
 		// private key, message being signed, and iteration count.
-		k := secp256k1.NonceRFC6979(privKeyBytes[:], hash, nil, nil, iteration)
+		var k secp256k1.ModNScalar
+		secp256k1.NonceRFC6979(&k, privKeyBytes[:], hash, nil, nil, iteration)
 
 		// Steps 2-6.
-		sig, pubKeyRecoveryCode, success := sign(privKeyScalar, k, hash)
+		pubKeyRecoveryCode, success := sign(sig, privKeyScalar, &k, hash)
 		k.Zero()
 		if !success {
 			continue
 		}
 
-		return sig, pubKeyRecoveryCode
+		return pubKeyRecoveryCode
 	}
 }
 
@@ -728,9 +736,8 @@ func signRFC6979(privKey *secp256k1.PrivateKey, hash []byte) (*Signature, byte) 
 // private key.  The produced signature is deterministic (same message and same
 // key yield the same signature) and canonical in accordance with RFC6979 and
 // BIP0062.
-func Sign(key *secp256k1.PrivateKey, hash []byte) *Signature {
-	signature, _ := signRFC6979(key, hash)
-	return signature
+func Sign(sig *Signature, key *secp256k1.PrivateKey, hash []byte) {
+	_ = signRFC6979(sig, key, hash)
 }
 
 const (
@@ -775,7 +782,8 @@ const (
 func SignCompact(key *secp256k1.PrivateKey, hash []byte, isCompressedKey bool) []byte {
 	// Create the signature and associated pubkey recovery code and calculate
 	// the compact signature recovery code.
-	sig, pubKeyRecoveryCode := signRFC6979(key, hash)
+	var sig Signature
+	pubKeyRecoveryCode := signRFC6979(&sig, key, hash)
 	compactSigRecoveryCode := compactSigMagicOffset + pubKeyRecoveryCode
 	if isCompressedKey {
 		compactSigRecoveryCode += compactSigCompPubKey

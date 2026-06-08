@@ -91,11 +91,11 @@ func schnorrSignExt(sig *SchnorrSignature, privKey *PrivateKey, msg []byte,
 	privKeyScalar.PutBytes(&privKeyBytes)
 	defer zeroArray32(&privKeyBytes)
 	for iteration := uint32(0); ; iteration++ {
-		k := secp.NonceRFC6979(
-			privKeyBytes[:], msg, rfc6979ExtraDataV0[:], nil, iteration,
-		)
+		var k secp.ModNScalar
+		secp.NonceRFC6979(&k, privKeyBytes[:], msg,
+			rfc6979ExtraDataV0[:], nil, iteration)
 
-		err := schnorrSign(sig, &privKeyScalar, k, &pub, msg, fastSign)
+		err := schnorrSign(sig, &privKeyScalar, &k, &pub, msg, fastSign)
 		k.Zero()
 		if err != nil {
 			continue

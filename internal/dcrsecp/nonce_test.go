@@ -150,7 +150,8 @@ func TestNonceRFC6979(t *testing.T) {
 		wantNonce := hexToBytes(test.expected)
 
 		// Ensure deterministically generated nonce is the expected value.
-		gotNonce := NonceRFC6979(privKey, hash, extraData, version,
+		var gotNonce ModNScalar
+		NonceRFC6979(&gotNonce, privKey, hash, extraData, version,
 			test.iterations)
 		gotNonceBytes := gotNonce.Bytes()
 		if !bytes.Equal(gotNonceBytes[:], wantNonce) {
@@ -205,7 +206,8 @@ func TestRFC6979Compat(t *testing.T) {
 		hash := sha256.Sum256([]byte(test.msg))
 
 		// Ensure deterministically generated nonce is the expected value.
-		gotNonce := NonceRFC6979(privKey, hash[:], nil, nil, 0)
+		var gotNonce ModNScalar
+		NonceRFC6979(&gotNonce, privKey, hash[:], nil, nil, 0)
 		wantNonce := hexToBytes(test.nonce)
 		gotNonceBytes := gotNonce.Bytes()
 		if !bytes.Equal(gotNonceBytes[:], wantNonce) {

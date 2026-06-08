@@ -8,7 +8,8 @@ import (
 func ecdsaSign(sig *ECDSASignature, priv *PrivateKey, hash []byte) {
 	priv2 := secp.PrivateKey{Key: priv.k}
 
-	sig2 := ecdsa.Sign(&priv2, hash)
+	var sig2 ecdsa.Signature
+	ecdsa.Sign(&sig2, &priv2, hash)
 	sig.r = sig2.Rs
 	sig.s = sig2.Ss
 }

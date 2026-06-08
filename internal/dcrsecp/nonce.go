@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"hash"
+	"sync"
 )
 
 // References:
@@ -93,13 +94,84 @@ func (h *hmacsha256) Sum() []byte {
 	return h.outer.Sum(nil)
 }
 
-// newHMACSHA256 returns a new HMAC-SHA256 hasher using the provided key.
-func newHMACSHA256(key []byte) *hmacsha256 {
-	h := new(hmacsha256)
-	h.inner = sha256.New()
-	h.outer = sha256.New()
-	h.initKey(key)
-	return h
+// Sum returns the hash of the written data.
+func (h *hmacsha256) Sum2(outBuf, tmpBuf []byte) []byte {
+	h.outer.Reset()
+	h.outer.Write(h.opad[:])
+	h.outer.Write(h.inner.Sum(tmpBuf))
+	outBuf = h.outer.Sum(outBuf)
+	return outBuf
+}
+
+type hmacPool struct {
+	p sync.Pool
+}
+
+func (h *hmacPool) Get(key []byte) *hmacsha256 {
+	hs := h.p.Get().(*hmacsha256)
+	hs.initKey(key)
+	return hs
+}
+
+func (h *hmacPool) Put(hs *hmacsha256) {
+	hs.inner.Reset()
+	hs.outer.Reset()
+	*hs = hmacsha256{
+		inner: hs.inner,
+		outer: hs.outer,
+	}
+	h.p.Put(hs)
+}
+
+var hmacP = hmacPool{
+	p: sync.Pool{
+		New: func() any {
+			h := new(hmacsha256)
+			h.inner = sha256.New()
+			h.outer = sha256.New()
+			return h
+		},
+	},
+}
+
+const (
+	// keyBufSize is the size of privKeyLen + hashLen + extraLen +
+	// versionLen
+	keyBufSize       = 32 + 32 + 32 + 16
+	bufPoolMinBufCap = keyBufSize
+)
+
+type bufPool struct {
+	p sync.Pool
+}
+
+func (b *bufPool) Get() *[4][]byte {
+	return b.p.Get().(*[4][]byte)
+}
+
+func (b *bufPool) Put(bufs *[4][]byte) {
+	bufs[0] = bufs[0][:cap(bufs[0])]
+	clear(bufs[0])
+	bufs[1] = bufs[1][:cap(bufs[1])]
+	clear(bufs[1])
+	bufs[2] = bufs[2][:cap(bufs[2])]
+	clear(bufs[2])
+	bufs[3] = bufs[3][:cap(bufs[3])]
+	clear(bufs[3])
+	b.p.Put(bufs)
+}
+
+var bufP = bufPool{
+	p: sync.Pool{
+		New: func() any {
+			return &[4][]byte{
+				make([]byte, bufPoolMinBufCap),
+				make([]byte, bufPoolMinBufCap),
+				make([]byte, bufPoolMinBufCap),
+				make([]byte, bufPoolMinBufCap),
+			}
+		},
+	},
 }
 
 // NonceRFC6979 generates a nonce deterministically according to RFC 6979 using
@@ -114,7 +186,7 @@ func newHMACSHA256(key []byte) *hmacsha256 {
 // that results in a valid signature in the extremely unlikely event the
 // original nonce produced results in an invalid signature (e.g. R == 0).
 // Signing code should start with 0 and increment it if necessary.
-func NonceRFC6979(privKey []byte, hash []byte, extra []byte, version []byte, extraIterations uint32) *ModNScalar {
+func NonceRFC6979(nonce *ModNScalar, privKey []byte, hash []byte, extra []byte, version []byte, extraIterations uint32) {
 	// Input to HMAC is the 32-byte private key and the 32-byte hash.  In
 	// addition, it may include the optional 32-byte extra data and 16-byte
 	// version.  Create a fixed-size array to avoid extra allocs and slice it
@@ -125,7 +197,13 @@ func NonceRFC6979(privKey []byte, hash []byte, extra []byte, version []byte, ext
 		extraLen   = 32
 		versionLen = 16
 	)
-	var keyBuf [privKeyLen + hashLen + extraLen + versionLen]byte
+	var keyBuf, k, v, tmp []byte
+	{
+		bufs := bufP.Get()
+		defer bufP.Put(bufs)
+		keyBuf, k, v, tmp = bufs[0], bufs[1], bufs[2], bufs[3]
+	}
+	keyBuf = keyBuf[:privKeyLen+hashLen+extraLen+versionLen]
 
 	// Truncate rightmost bytes of private key and hash if they are too long and
 	// leave left padding of zeros when they're too short.
@@ -161,7 +239,8 @@ func NonceRFC6979(privKey []byte, hash []byte, extra []byte, version []byte, ext
 	// function in this optimized implementation, the result is just the hash
 	// length, so avoid the extra calculations.  Also, since it isn't modified,
 	// start with a global value.
-	v := oneInitializer
+	v = v[:len(oneInitializer)]
+	copy(v, oneInitializer)
 
 	// Step C (Go zeroes all allocated memory).
 	//
@@ -171,7 +250,8 @@ func NonceRFC6979(privKey []byte, hash []byte, extra []byte, version []byte, ext
 	// As above, since the hash length is a multiple of 8 for the chosen hash
 	// function in this optimized implementation, the result is just the hash
 	// length, so avoid the extra calculations.
-	k := zeroInitializer[:hashLen]
+	k = k[:hashLen]
+	copy(k, zeroInitializer[:hashLen])
 
 	// Step D.
 	//
@@ -179,18 +259,19 @@ func NonceRFC6979(privKey []byte, hash []byte, extra []byte, version []byte, ext
 	//
 	// Note that key is the "int2octets(x) || bits2octets(h1)" portion along
 	// with potential additional data as described by section 3.6 of the RFC.
-	hasher := newHMACSHA256(k)
+	hasher := hmacP.Get(k)
+	defer hmacP.Put(hasher)
 	hasher.Write(oneInitializer)
 	hasher.Write(singleZero)
 	hasher.Write(key)
-	k = hasher.Sum()
+	k = hasher.Sum2(k[:0], tmp[:0])
 
 	// Step E.
 	//
 	// V = HMAC_K(V)
 	hasher.ResetKey(k)
 	hasher.Write(v)
-	v = hasher.Sum()
+	v = hasher.Sum2(v[:0], tmp[:0])
 
 	// Step F.
 	//
@@ -202,14 +283,14 @@ func NonceRFC6979(privKey []byte, hash []byte, extra []byte, version []byte, ext
 	hasher.Write(v)
 	hasher.Write(singleOne)
 	hasher.Write(key)
-	k = hasher.Sum()
+	k = hasher.Sum2(k[:0], tmp[:0])
 
 	// Step G.
 	//
 	// V = HMAC_K(V)
 	hasher.ResetKey(k)
 	hasher.Write(v)
-	v = hasher.Sum()
+	v = hasher.Sum2(v[:0], tmp[:0])
 
 	// Step H.
 	//
@@ -230,7 +311,7 @@ func NonceRFC6979(privKey []byte, hash []byte, extra []byte, version []byte, ext
 		// loop or create an intermediate T.
 		hasher.Reset()
 		hasher.Write(v)
-		v = hasher.Sum()
+		v = hasher.Sum2(v[:0], tmp[:0])
 
 		// Step H3.
 		//
@@ -240,12 +321,11 @@ func NonceRFC6979(privKey []byte, hash []byte, extra []byte, version []byte, ext
 		// Otherwise, compute:
 		// K = HMAC_K(V || 0x00)
 		// V = HMAC_K(V)
-		var secret ModNScalar
-		overflow := secret.SetByteSlice(v)
-		if !overflow && !secret.IsZero() {
+		overflow := nonce.SetByteSlice(v)
+		if !overflow && !nonce.IsZero() {
 			generated++
 			if generated > extraIterations {
-				return &secret
+				return
 			}
 		}
 
@@ -253,11 +333,11 @@ func NonceRFC6979(privKey []byte, hash []byte, extra []byte, version []byte, ext
 		hasher.Reset()
 		hasher.Write(v)
 		hasher.Write(singleZero)
-		k = hasher.Sum()
+		k = hasher.Sum2(k[:0], tmp[:0])
 
 		// V = HMAC_K(V)
 		hasher.ResetKey(k)
 		hasher.Write(v)
-		v = hasher.Sum()
+		v = hasher.Sum2(v[:0], tmp[:0])
 	}
 }
