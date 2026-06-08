@@ -1,6 +1,8 @@
 package secp256k1
 
-import "github.com/allocz/secp256k1/internal/gosecp"
+import (
+	"github.com/allocz/secp256k1/internal/gosecp"
+)
 
 type PrivateKey = gosecp.PrivateKey
 

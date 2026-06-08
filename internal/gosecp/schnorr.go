@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"sync"
 
 	secp "github.com/allocz/secp256k1/internal/dcrsecp"
 )
@@ -59,19 +60,21 @@ func schnorrSignExt(sig *SchnorrSignature, privKey *PrivateKey, msg []byte,
 
 	if auxRand != nil {
 		privBytes := privKeyScalar.Bytes()
-		t := schnorrTaggedHash(
-			schnorrTagBIP0340Aux, auxRand[:],
+		var t schnorrHash
+		schnorrTaggedHash(
+			&t, schnorrTagBIP0340Aux, auxRand[:],
 		)
 		for i := range t {
 			t[i] ^= privBytes[i]
 		}
 
-		rand := schnorrTaggedHash(
-			schnorrTagBIP0340Nonce, t[:], pubKeyBytes[1:], msg,
+		var rand schnorrHash
+		schnorrTaggedHash(
+			&rand, schnorrTagBIP0340Nonce, t[:], pubKeyBytes[1:], msg,
 		)
 
 		var kPrime secp.ModNScalar
-		kPrime.SetBytes((*[32]byte)(rand))
+		kPrime.SetBytes((*[32]byte)(&rand))
 
 		if kPrime.IsZero() {
 			return fmt.Errorf("generated nonce is zero")
@@ -119,12 +122,13 @@ func schnorrSign(sig *SchnorrSignature, privKey, nonce *secp.ModNScalar,
 
 	var pBytes [32]byte
 	pubKey.p.X.PutBytes(&pBytes)
-	commitment := schnorrTaggedHash(
-		schnorrTagBIP0340Challenge, R.X.Bytes()[:], pBytes[:], hash,
+	var commitment schnorrHash
+	schnorrTaggedHash(
+		&commitment, schnorrTagBIP0340Challenge, R.X.Bytes()[:], pBytes[:], hash,
 	)
 
 	var e secp.ModNScalar
-	if overflow := e.SetBytes((*[32]byte)(commitment)); overflow != 0 {
+	if overflow := e.SetBytes((*[32]byte)(&commitment)); overflow != 0 {
 		k.Zero()
 		return fmt.Errorf("hash of (r || P || m) too big")
 	}
@@ -193,16 +197,36 @@ func (hash *schnorrHash) SetBytes(newHash []byte) error {
 	return nil
 }
 
-func newHash(newHash []byte) (*schnorrHash, error) {
-	var sh schnorrHash
-	err := sh.SetBytes(newHash)
+func schnorrHashInit(hash *schnorrHash, newHash []byte) error {
+	err := hash.SetBytes(newHash)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return &sh, err
+	return err
 }
 
-func schnorrTaggedHash(tag []byte, msgs ...[]byte) *schnorrHash {
+type b32Pool struct {
+	p sync.Pool
+}
+
+func (b *b32Pool) Get() *[32]byte {
+	return b.p.Get().(*[32]byte)
+}
+
+func (b *b32Pool) Put(buf *[32]byte) {
+	clear(buf[:])
+	b.p.Put(buf)
+}
+
+var b32p = b32Pool{
+	p: sync.Pool{
+		New: func() any {
+			return &[32]byte{}
+		},
+	},
+}
+
+func schnorrTaggedHash(hash *schnorrHash, tag []byte, msgs ...[]byte) {
 	shaTag, ok := precomputedTags[string(tag)]
 	if !ok {
 		shaTag = sha256.Sum256(tag)
@@ -216,11 +240,12 @@ func schnorrTaggedHash(tag []byte, msgs ...[]byte) *schnorrHash {
 		h.Write(msg)
 	}
 
-	taggedHash := h.Sum(nil)
+	buf := b32p.Get()
+	taggedHash := h.Sum(buf[:0])
 
-	hash, _ := newHash(taggedHash)
+	_ = schnorrHashInit(hash, taggedHash)
 
-	return hash
+	b32p.Put(buf)
 }
 
 const (
@@ -243,11 +268,12 @@ func schnorrParsePubKey(pub *secp.PublicKey, pubKeyStr []byte) error {
 	keyCompressed[0] = secp.PubKeyFormatCompressedEven
 	copy(keyCompressed[1:], pubKeyStr)
 
-	pub2, err := secp.ParsePubKey(keyCompressed[:])
+	var pub2 secp.PublicKey
+	err := secp.ParsePubKey(&pub2, keyCompressed[:])
 	if err != nil {
 		return err
 	}
-	*pub = *pub2
+	*pub = pub2
 	return nil
 }
 
@@ -275,11 +301,12 @@ func schnorrVerify3(sig *SchnorrSignature, hash []byte,
 	var pubXBytes [32]byte
 	pubKey.Xf.PutBytes(&pubXBytes)
 
-	commitment := schnorrTaggedHash(schnorrTagBIP0340Challenge, rBytes[:],
+	var commitment schnorrHash
+	schnorrTaggedHash(&commitment, schnorrTagBIP0340Challenge, rBytes[:],
 		pubXBytes[:], hash)
 
 	var e secp.ModNScalar
-	e.SetBytes((*[32]byte)(commitment))
+	e.SetBytes((*[32]byte)(&commitment))
 
 	e.Negate()
 
