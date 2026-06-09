@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"sync"
 
 	secp "github.com/allocz/secp256k1/internal/dcrsecp"
 )
@@ -205,27 +204,6 @@ func schnorrHashInit(hash *schnorrHash, newHash []byte) error {
 	return err
 }
 
-type b32Pool struct {
-	p sync.Pool
-}
-
-func (b *b32Pool) Get() *[32]byte {
-	return b.p.Get().(*[32]byte)
-}
-
-func (b *b32Pool) Put(buf *[32]byte) {
-	clear(buf[:])
-	b.p.Put(buf)
-}
-
-var b32p = b32Pool{
-	p: sync.Pool{
-		New: func() any {
-			return &[32]byte{}
-		},
-	},
-}
-
 func schnorrTaggedHash(hash *schnorrHash, tag []byte, msgs ...[]byte) {
 	shaTag, ok := precomputedTags[string(tag)]
 	if !ok {
@@ -240,12 +218,10 @@ func schnorrTaggedHash(hash *schnorrHash, tag []byte, msgs ...[]byte) {
 		h.Write(msg)
 	}
 
-	buf := b32p.Get()
-	taggedHash := h.Sum(buf[:0])
+	var taggedHash [32]byte
+	h.Sum(taggedHash[:0])
 
-	_ = schnorrHashInit(hash, taggedHash)
-
-	b32p.Put(buf)
+	_ = schnorrHashInit(hash, taggedHash[:])
 }
 
 const (

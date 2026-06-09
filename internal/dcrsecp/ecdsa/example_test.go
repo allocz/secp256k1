@@ -54,7 +54,8 @@ func ExampleSignature_Verify() {
 		fmt.Println(err)
 		return
 	}
-	pubKey, err := secp256k1.ParsePubKey(pubKeyBytes)
+	var pubKey secp256k1.PublicKey
+	err = secp256k1.ParsePubKey(&pubKey, pubKeyBytes)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -75,7 +76,7 @@ func ExampleSignature_Verify() {
 	// Verify the signature for the message using the public key.
 	message := "test message"
 	messageHash := sha256.Sum256([]byte(message))
-	verified := signature.Verify(messageHash[:], pubKey)
+	verified := signature.Verify(messageHash[:], &pubKey)
 	fmt.Println("Signature Verified?", verified)
 
 	// Output:

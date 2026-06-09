@@ -34,7 +34,8 @@ func BenchmarkParsePubKeyCompressed(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ParsePubKey(pubKeyBytes)
+		var pubKey PublicKey
+		ParsePubKey(&pubKey, pubKeyBytes)
 	}
 }
 
@@ -49,6 +50,7 @@ func BenchmarkParsePubKeyUncompressed(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ParsePubKey(pubKeyBytes)
+		var pubKey PublicKey
+		ParsePubKey(&pubKey, pubKeyBytes)
 	}
 }

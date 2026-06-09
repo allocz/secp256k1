@@ -87,14 +87,6 @@ func (h *hmacsha256) Reset() {
 }
 
 // Sum returns the hash of the written data.
-func (h *hmacsha256) Sum() []byte {
-	h.outer.Reset()
-	h.outer.Write(h.opad[:])
-	h.outer.Write(h.inner.Sum(nil))
-	return h.outer.Sum(nil)
-}
-
-// Sum returns the hash of the written data.
 func (h *hmacsha256) Sum2(outBuf, tmpBuf []byte) []byte {
 	h.outer.Reset()
 	h.outer.Write(h.opad[:])
@@ -102,6 +94,8 @@ func (h *hmacsha256) Sum2(outBuf, tmpBuf []byte) []byte {
 	outBuf = h.outer.Sum(outBuf)
 	return outBuf
 }
+
+var Dummy = make([]byte, 0, 1<<30)
 
 type hmacPool struct {
 	p sync.Pool
@@ -139,37 +133,26 @@ const (
 	// versionLen
 	keyBufSize       = 32 + 32 + 32 + 16
 	bufPoolMinBufCap = keyBufSize
+	bufPoolSize      = 4
 )
 
 type bufPool struct {
 	p sync.Pool
 }
 
-func (b *bufPool) Get() *[4][]byte {
-	return b.p.Get().(*[4][]byte)
+func (b *bufPool) Get() *[bufPoolSize][bufPoolMinBufCap]byte {
+	return b.p.Get().(*[bufPoolSize][bufPoolMinBufCap]byte)
 }
 
-func (b *bufPool) Put(bufs *[4][]byte) {
-	bufs[0] = bufs[0][:cap(bufs[0])]
-	clear(bufs[0])
-	bufs[1] = bufs[1][:cap(bufs[1])]
-	clear(bufs[1])
-	bufs[2] = bufs[2][:cap(bufs[2])]
-	clear(bufs[2])
-	bufs[3] = bufs[3][:cap(bufs[3])]
-	clear(bufs[3])
+func (b *bufPool) Put(bufs *[bufPoolSize][bufPoolMinBufCap]byte) {
+	clear(bufs[:])
 	b.p.Put(bufs)
 }
 
 var bufP = bufPool{
 	p: sync.Pool{
 		New: func() any {
-			return &[4][]byte{
-				make([]byte, bufPoolMinBufCap),
-				make([]byte, bufPoolMinBufCap),
-				make([]byte, bufPoolMinBufCap),
-				make([]byte, bufPoolMinBufCap),
-			}
+			return &[bufPoolSize][bufPoolMinBufCap]byte{}
 		},
 	},
 }
@@ -186,7 +169,9 @@ var bufP = bufPool{
 // that results in a valid signature in the extremely unlikely event the
 // original nonce produced results in an invalid signature (e.g. R == 0).
 // Signing code should start with 0 and increment it if necessary.
-func NonceRFC6979(nonce *ModNScalar, privKey []byte, hash []byte, extra []byte, version []byte, extraIterations uint32) {
+func NonceRFC6979(nonceOut *ModNScalar, privKey []byte, hash []byte,
+	extra []byte, version []byte, extraIterations uint32) {
+
 	// Input to HMAC is the 32-byte private key and the 32-byte hash.  In
 	// addition, it may include the optional 32-byte extra data and 16-byte
 	// version.  Create a fixed-size array to avoid extra allocs and slice it
@@ -201,7 +186,8 @@ func NonceRFC6979(nonce *ModNScalar, privKey []byte, hash []byte, extra []byte, 
 	{
 		bufs := bufP.Get()
 		defer bufP.Put(bufs)
-		keyBuf, k, v, tmp = bufs[0], bufs[1], bufs[2], bufs[3]
+		keyBuf, k, v, tmp = bufs[0][:], bufs[1][:], bufs[2][:],
+			bufs[3][:]
 	}
 	keyBuf = keyBuf[:privKeyLen+hashLen+extraLen+versionLen]
 
@@ -321,8 +307,8 @@ func NonceRFC6979(nonce *ModNScalar, privKey []byte, hash []byte, extra []byte, 
 		// Otherwise, compute:
 		// K = HMAC_K(V || 0x00)
 		// V = HMAC_K(V)
-		overflow := nonce.SetByteSlice(v)
-		if !overflow && !nonce.IsZero() {
+		overflow := nonceOut.SetByteSlice(v)
+		if !overflow && !nonceOut.IsZero() {
 			generated++
 			if generated > extraIterations {
 				return
