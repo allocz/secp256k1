@@ -6,8 +6,9 @@ import (
 
 type PrivateKey = gosecp.PrivateKey
 
-func PrivateKeyFromBytes(priv *PrivateKey, data []byte) {
+func PrivateKeyFromBytes(priv *PrivateKey, data []byte) error {
 	gosecp.PrivateKeyFromBytes(priv, data)
+	return nil
 }
 
 func PrivateKeyToBytes(data []byte, priv *PrivateKey) {
@@ -16,8 +17,9 @@ func PrivateKeyToBytes(data []byte, priv *PrivateKey) {
 
 type PublicKey = gosecp.PublicKey
 
-func PublicKeyFromBytes(pub *PublicKey, data []byte) {
+func PublicKeyFromBytes(pub *PublicKey, data []byte) error {
 	gosecp.PublicKeyFromBytes(pub, data)
+	return nil
 }
 
 func PublicKeyToBytes(data []byte, pub *PublicKey) {
@@ -30,16 +32,18 @@ func PublicKeyFromPrivateKey(pub *PublicKey, priv *PrivateKey) {
 
 type ECDSASignature = gosecp.ECDSASignature
 
-func ECDSASignatureFromBytes(sig *ECDSASignature, data []byte) {
+func ECDSASignatureFromBytes(sig *ECDSASignature, data []byte) error {
 	gosecp.ECDSASignatureFromBytes(sig, data)
+	return nil
 }
 
 func ECDSASignatureToBytes(data []byte, sig *ECDSASignature) {
 	gosecp.ECDSASignatureToBytes(data, sig)
 }
 
-func ECDSASign(sig *ECDSASignature, priv *PrivateKey, hash []byte) {
+func ECDSASign(sig *ECDSASignature, priv *PrivateKey, hash []byte) error {
 	gosecp.ECDSASign(sig, priv, hash)
+	return nil
 }
 
 func ECDSAVerify(sig *ECDSASignature, pub *PublicKey, hash []byte) bool {
@@ -60,9 +64,7 @@ func SchnorrPublicKeyFromBytes(pub *PublicKey, data []byte) error {
 	return nil
 }
 
-func SchnorrSignatureFromBytes(sig *SchnorrSignature,
-	data []byte) error {
-
+func SchnorrSignatureFromBytes(sig *SchnorrSignature, data []byte) error {
 	return gosecp.SchnorrSignatureFromBytes(sig, data)
 }
 
