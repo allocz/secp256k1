@@ -16,6 +16,7 @@ import "C"
 import (
 	"fmt"
 	"runtime"
+	"slices"
 	"unsafe"
 )
 
@@ -60,11 +61,27 @@ func PublicKeyFromBytes(pub *PublicKey, data []byte) error {
 }
 
 func PublicKeyToBytes(data []byte, pub *PublicKey) {
-	dataLen := len(data)
-	C.secp256k1_ec_pubkey_serialize(ctx,
-		(*C.uchar)(unsafe.Pointer(&data[0])),
-		(*C.size_t)(unsafe.Pointer(&dataLen)),
-		&pub.p, C.SECP256K1_EC_UNCOMPRESSED)
+	data[0] = 0x04
+
+	wsrc := (*[8][8]byte)(unsafe.Pointer(&pub.p))
+	w := (*[8][8]byte)(unsafe.Pointer(&data[1]))
+	w[0] = wsrc[3]
+	w[1] = wsrc[2]
+	w[2] = wsrc[1]
+	w[3] = wsrc[0]
+	w[4] = wsrc[7]
+	w[5] = wsrc[6]
+	w[6] = wsrc[5]
+	w[7] = wsrc[4]
+
+	slices.Reverse(w[0][:])
+	slices.Reverse(w[1][:])
+	slices.Reverse(w[2][:])
+	slices.Reverse(w[3][:])
+	slices.Reverse(w[4][:])
+	slices.Reverse(w[5][:])
+	slices.Reverse(w[6][:])
+	slices.Reverse(w[7][:])
 }
 
 func PublicKeyFromPrivateKey(pub *PublicKey, priv *PrivateKey) {
