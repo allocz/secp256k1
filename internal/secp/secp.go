@@ -2,6 +2,8 @@ package secp
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/secp256k1_c/include -O2
+#cgo noescape secp256k1_ec_pubkey_parse
+#cgo nocallback secp256k1_ec_pubkey_parse
 
 #include "secp256k1_c/src/secp256k1.c"
 #include "secp256k1_c/src/modules/extrakeys/main_impl.h"
@@ -169,7 +171,7 @@ func SchnorrPublicKeyFromBytes(pub *PublicKey, data []byte) error {
 	pubb[0] = 0x02
 	copy(pubb[1:], data)
 	ok := C.secp256k1_ec_pubkey_parse(ctx, &pub.p,
-		(*C.uchar)(unsafe.Pointer(&pubb[0])), C.size_t(len(pubb)))
+		(*C.uchar)(unsafe.Pointer(&pubb)), C.size_t(len(pubb)))
 	if ok == 0 {
 		return fmt.Errorf("fail to parse pubkey")
 	}

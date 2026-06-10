@@ -2,7 +2,6 @@ Improve schnorr tests by setting error kinds
 
 C implementation: zero out allocations of:
 * SchnorrKeyPairFromBytes
-* SchnorrPublicKeyFromBytes
 * SchnorrSign
 * SchnorrVerify
 
