@@ -27,19 +27,8 @@ func schnorrPublicKeyFromBytes(pub *PublicKey, pubb []byte) {
 	secp.DecompressY(&pub.p.X, false, &pub.p.Y)
 }
 
-const scalarSize = 32
-
-var (
-	rfc6979ExtraDataV0 = [32]uint8{
-		0xa3, 0xeb, 0x4c, 0x18, 0x2f, 0xae, 0x7e, 0xf4,
-		0xe8, 0x10, 0xc6, 0xee, 0x13, 0xb0, 0xe9, 0x26,
-		0x68, 0x6d, 0x71, 0xe8, 0x7f, 0x39, 0x4f, 0x79,
-		0x9c, 0x00, 0xa5, 0x21, 0x03, 0xcb, 0x4e, 0x17,
-	}
-)
-
 func schnorrSignExt(sig *SchnorrSignature, privKey *PrivateKey, msg []byte,
-	auxRand *[32]byte, fastSign bool) error {
+	auxRandP *[32]byte, fastSign bool) error {
 
 	var privKeyScalar secp.ModNScalar
 	privKeyScalar.Set(&privKey.k)
@@ -57,54 +46,39 @@ func schnorrSignExt(sig *SchnorrSignature, privKey *PrivateKey, msg []byte,
 		privKeyScalar.Negate()
 	}
 
-	if auxRand != nil {
-		privBytes := privKeyScalar.Bytes()
-		var t schnorrHash
-		schnorrTaggedHash(
-			&t, schnorrTagBIP0340Aux, auxRand[:],
-		)
-		for i := range t {
-			t[i] ^= privBytes[i]
-		}
-
-		var rand schnorrHash
-		schnorrTaggedHash(
-			&rand, schnorrTagBIP0340Nonce, t[:], pubKeyBytes[1:], msg,
-		)
-
-		var kPrime secp.ModNScalar
-		kPrime.SetBytes((*[32]byte)(&rand))
-
-		if kPrime.IsZero() {
-			return fmt.Errorf("generated nonce is zero")
-		}
-
-		err := schnorrSign(sig, &privKeyScalar, &kPrime, &pub,
-			msg, fastSign)
-		kPrime.Zero()
-		if err != nil {
-			return err
-		}
-
-		return nil
+	var auxRand [32]byte
+	if auxRandP != nil {
+		auxRand = *auxRandP
 	}
 
-	var privKeyBytes [scalarSize]byte
-	privKeyScalar.PutBytes(&privKeyBytes)
-	defer zeroArray32(&privKeyBytes)
-	for iteration := uint32(0); ; iteration++ {
-		var k secp.ModNScalar
-		secp.NonceRFC6979(&k, privKeyBytes[:], msg,
-			rfc6979ExtraDataV0[:], nil, iteration)
-
-		err := schnorrSign(sig, &privKeyScalar, &k, &pub, msg, fastSign)
-		k.Zero()
-		if err != nil {
-			continue
-		}
-
-		return nil
+	privBytes := privKeyScalar.Bytes()
+	var t schnorrHash
+	schnorrTaggedHash(
+		&t, schnorrTagBIP0340Aux, auxRand[:],
+	)
+	for i := range t {
+		t[i] ^= privBytes[i]
 	}
+
+	var rand schnorrHash
+	schnorrTaggedHash(
+		&rand, schnorrTagBIP0340Nonce, t[:], pubKeyBytes[1:], msg,
+	)
+
+	var kPrime secp.ModNScalar
+	kPrime.SetBytes((*[32]byte)(&rand))
+
+	if kPrime.IsZero() {
+		return fmt.Errorf("generated nonce is zero")
+	}
+
+	err := schnorrSign(sig, &privKeyScalar, &kPrime, &pub, msg, fastSign)
+	kPrime.Zero()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func schnorrSign(sig *SchnorrSignature, privKey, nonce *secp.ModNScalar,
@@ -122,9 +96,8 @@ func schnorrSign(sig *SchnorrSignature, privKey, nonce *secp.ModNScalar,
 	var pBytes [32]byte
 	pubKey.p.X.PutBytes(&pBytes)
 	var commitment schnorrHash
-	schnorrTaggedHash(
-		&commitment, schnorrTagBIP0340Challenge, R.X.Bytes()[:], pBytes[:], hash,
-	)
+	schnorrTaggedHash(&commitment, schnorrTagBIP0340Challenge,
+		R.X.Bytes()[:], pBytes[:], hash)
 
 	var e secp.ModNScalar
 	if overflow := e.SetBytes((*[32]byte)(&commitment)); overflow != 0 {
@@ -225,7 +198,7 @@ func schnorrTaggedHash(hash *schnorrHash, tag []byte, msgs ...[]byte) {
 }
 
 const (
-	PubKeyBytesLen = 32
+	pubKeyBytesLen = 32
 )
 
 func schnorrParsePubKey(pub *secp.PublicKey, pubKeyStr []byte) error {
@@ -233,10 +206,10 @@ func schnorrParsePubKey(pub *secp.PublicKey, pubKeyStr []byte) error {
 		err := fmt.Errorf("nil pubkey byte string")
 		return err
 	}
-	if len(pubKeyStr) != PubKeyBytesLen {
+	if len(pubKeyStr) != pubKeyBytesLen {
 		err := fmt.Errorf(
 			"bad pubkey byte string size (want %v, have %v)",
-			PubKeyBytesLen, len(pubKeyStr))
+			pubKeyBytesLen, len(pubKeyStr))
 		return err
 	}
 
@@ -306,10 +279,4 @@ func schnorrVerify3(sig *SchnorrSignature, hash []byte,
 	}
 
 	return nil
-}
-
-func zeroArray32(a *[32]byte) {
-	for i := range 32 {
-		a[i] = 0x00
-	}
 }
