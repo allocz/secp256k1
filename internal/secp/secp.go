@@ -4,6 +4,10 @@ package secp
 #cgo CFLAGS: -I${SRCDIR}/secp256k1_c/include -O2
 #cgo noescape secp256k1_ec_pubkey_parse
 #cgo nocallback secp256k1_ec_pubkey_parse
+#cgo noescape secp256k1_keypair_create
+#cgo nocallback secp256k1_keypair_create
+#cgo noescape secp256k1_schnorrsig_sign_custom
+#cgo nocallback secp256k1_schnorrsig_sign_custom
 
 #include "secp256k1_c/src/secp256k1.c"
 #include "secp256k1_c/src/modules/extrakeys/main_impl.h"

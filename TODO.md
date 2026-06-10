@@ -1,8 +1,6 @@
 Improve schnorr tests by setting error kinds
 
 C implementation: zero out allocations of:
-* SchnorrKeyPairFromBytes
-* SchnorrSign
 * SchnorrVerify
 
 Would be nice to PublicKeyFromBytes work with
