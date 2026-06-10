@@ -1,8 +1,5 @@
 Improve schnorr tests by setting error kinds
 
-C implementation: zero out allocations of:
-* SchnorrVerify
-
 Would be nice to PublicKeyFromBytes work with
 * 32 byte X only pubkey with even Y
 * 64 byte XY pubkey
