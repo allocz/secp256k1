@@ -1,6 +1,7 @@
 package gosecp
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -21,10 +22,26 @@ func schnorrKeyPairFromBytes(priv *PrivateKey, pub *PublicKey, privb []byte) {
 	}
 }
 
-func schnorrPublicKeyFromBytes(pub *PublicKey, pubb []byte) {
+func schnorrPublicKeyFromBytes(pub *PublicKey, pubb []byte) error {
 	pub.p.Z.SetInt(1)
 	pub.p.X.SetByteSlice(pubb)
+	var fsizeb [32]byte
+	secp.Params().P.FillBytes(fsizeb[:])
+	if bytes.Compare(pubb[:], fsizeb[:]) > 0 {
+		return fmt.Errorf("pubkey x exceeds field size")
+	}
 	secp.DecompressY(&pub.p.X, false, &pub.p.Y)
+	if !isOnCurve(&pub.p.X, &pub.p.Y) {
+		return fmt.Errorf("pubkey not in the curve")
+	}
+	return nil
+}
+
+func isOnCurve(fx, fy *secp.FieldVal) bool {
+	// Elliptic curve equation for secp256k1 is: y^2 = x^3 + 7
+	y2 := new(secp.FieldVal).SquareVal(fy).Normalize()
+	result := new(secp.FieldVal).SquareVal(fx).Mul(fx).AddInt(7).Normalize()
+	return y2.Equals(result)
 }
 
 func schnorrSignExt(sig *SchnorrSignature, privKey *PrivateKey, msg []byte,

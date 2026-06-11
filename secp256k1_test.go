@@ -11,16 +11,21 @@ import (
 func TestSchnorrSig(t *testing.T) {
 	for i, test := range bip340Vector {
 		t.Run(test.comment, func(t *testing.T) {
-			err := schnorrTest(t, i)
+			eKind, err := schnorrTest(t, i)
 			if err != nil {
 				t.Fatal(err)
+			}
+			if eKind != test.errKind {
+				t.Fatalf("expecting error kind %d, got %d",
+					test.errKind, eKind)
 			}
 		})
 	}
 }
 
-func schnorrTest(_ *testing.T, i int) error {
+func schnorrTest(_ *testing.T, i int) (schnorrVectorErrKind, error) {
 	test := bip340Vector[i]
+	sve := sveNone
 	switch {
 	case !isZeroS(test.secKey[:]) && test.pass:
 		var (
@@ -31,71 +36,78 @@ func schnorrTest(_ *testing.T, i int) error {
 		)
 		err := SchnorrKeyPairFromBytes(&priv, &pub, test.secKey[:])
 		if err != nil {
-			return fmt.Errorf("fail to parse keypair: %w", err)
+			return sve, fmt.Errorf("fail to parse keypair: %w",
+				err)
 		}
 		PublicKeyToBytes(pubb[:], &pub)
 		if !bytes.Equal(pubb[1:33], test.pubKey[:]) {
-			return fmt.Errorf("public keys do not match")
+			return sve, fmt.Errorf("public keys do not match")
 		}
 		err = SchnorrPublicKeyFromBytes(&pub2, test.pubKey[:])
 		if err != nil {
-			return fmt.Errorf("fail to parse pubkey: %w", err)
+			return sve, fmt.Errorf("fail to parse pubkey: %w", err)
 		}
 		PublicKeyToBytes(pub2b[:], &pub2)
 		if !bytes.Equal(pub2b[1:33], test.pubKey[:]) {
-			return fmt.Errorf("serialized public keys do not match")
+			return sve, fmt.Errorf(
+				"serialized public keys do not match")
 		}
-		err = SchnorrSignExt(&sig, &priv, test.msg, &test.auxRand, false)
+		err = SchnorrSignExt(&sig, &priv, test.msg, &test.auxRand,
+			false)
 		if err != nil {
-			return fmt.Errorf("fail to sign message: %w", err)
+			return sve, fmt.Errorf("fail to sign message: %w", err)
 		}
 		err = SchnorrSignatureFromBytes(&sig2, test.sig[:])
 		if err != nil {
-			return fmt.Errorf("fail to parse signature: %w", err)
+			return sve, fmt.Errorf("fail to parse signature: %w",
+				err)
 		}
 		var sigb, sig2b [64]byte
 		if !bytes.Equal(sig.ToBytes(sigb[:]), sig2.ToBytes(sig2b[:])) {
-			return fmt.Errorf("signatures do not match")
+			return sve, fmt.Errorf("signatures do not match")
 		}
 		ok := sig.Verify(&pub, test.msg)
 		if !ok {
-			return fmt.Errorf("fail to verify signature")
+			return sve, fmt.Errorf("fail to verify signature")
 		}
-		return nil
+		return sve, nil
 
 	case test.pass:
 		var pub PublicKey
 		var sig SchnorrSignature
 		err := SchnorrPublicKeyFromBytes(&pub, test.pubKey[:])
 		if err != nil {
-			return fmt.Errorf("fail to parse pubkey 2: %w", err)
+			return sve, fmt.Errorf("fail to parse pubkey 2: %w",
+				err)
 		}
 		err = SchnorrSignatureFromBytes(&sig, test.sig[:])
 		if err != nil {
-			return fmt.Errorf("fail to parse signature 2: %w", err)
+			return sve, fmt.Errorf("fail to parse signature 2: %w",
+				err)
 		}
 		ok := sig.Verify(&pub, test.msg)
 		if !ok {
-			return fmt.Errorf("fail to verify signature 2")
+			return sve, fmt.Errorf("fail to verify signature 2")
 		}
-		return nil
+		return sve, nil
 
 	default:
 		var pub PublicKey
 		var sig SchnorrSignature
 		err := SchnorrPublicKeyFromBytes(&pub, test.pubKey[:])
 		if err != nil {
-			return nil
+			return sveParsePub, nil
 		}
 		err = SchnorrSignatureFromBytes(&sig, test.sig[:])
 		if err != nil {
-			return fmt.Errorf("fail to parse signature 3: %w", err)
+			return sve, fmt.Errorf("fail to parse signature 3: %w",
+				err)
 		}
 		ok := sig.Verify(&pub, test.msg)
 		if !ok {
-			return nil
+			return sveInvalidSig, nil
 		}
-		return fmt.Errorf("expecting failure")
+		return sveNone, fmt.Errorf("expecting failure")
 	}
 
 }
@@ -345,13 +357,20 @@ func initROVars() roVars {
 	var rov roVars
 
 	htob(rov.privb[:], "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-	htob(rov.pubb[:], "046a04ab98d9e4774ad806e302dddeb63bea16b5cb5f223ee77478e861bb583eb336b6fbcb60b5b3d4f1551ac45e5ffc4936466e7d98f6c7c0ec736539f74691a6")
+	htob(rov.pubb[:], "046A04AB98D9E4774AD806E302DDDEB63BEA16B5CB5F223EE77478E861BB583EB336B6FBCB60B5B3D4F1551AC45E5FFC4936466E7D98F6C7C0EC736539F74691A6")
 	htob(rov.msghash[:], "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB")
 	htob(rov.sigb[:], "B81960B4969B423199DEA555F562A66B7F49DEA5836A0168361F1A5F8A3C829803EEA7D7EE4462E3E9D6D59220F950564CAEB77F7B1CDB42AF3C83B013FF3B2F")
-	//htob(rov.ssigb[:], "F81C56642F6D4E31AD0A176E1922D52AEEEBA068D866F7E8C9770541A0888876BA845A87EF5F2C9D700ED760D2820D81069961C49D526D3DC0BDAE87BC839A0C")
 	htob(rov.ssigb[:], "EDA3C4AA41E0B9A0A20F290FFEADB8E8F855643027CA647C055B150E1D0957DA698B14E0684C3B33431673894DD71BF45BBF315A01B35328467D6AFA3DE186D0")
 	return rov
 }
+
+type schnorrVectorErrKind int
+
+const (
+	sveNone schnorrVectorErrKind = iota
+	sveParsePub
+	sveInvalidSig
+)
 
 var bip340Vector = []struct {
 	secKey  [32]byte
@@ -360,6 +379,7 @@ var bip340Vector = []struct {
 	msg     []byte
 	sig     [64]byte
 	pass    bool
+	errKind schnorrVectorErrKind
 	comment string
 }{
 	{
@@ -414,6 +434,7 @@ var bip340Vector = []struct {
 		msg:     htos("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89"),
 		sig:     htob64("6CFF5C3BA86C69EA4B7376F31A9BCB4F74C1976089B2D9963DA2E5543E17776969E89B4C5564D00349106B8497785DD7D1D713A8AE82B32FA79D5F7FC407D39B"),
 		pass:    false,
+		errKind: sveParsePub,
 		comment: "public key not on the curve",
 	},
 	{
@@ -423,6 +444,7 @@ var bip340Vector = []struct {
 		msg:     htos("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89"),
 		sig:     htob64("FFF97BD5755EEEA420453A14355235D382F6472F8568A18B2F057A14602975563CC27944640AC607CD107AE10923D9EF7A73C643E166BE5EBEAFA34B1AC553E2"),
 		pass:    false,
+		errKind: sveInvalidSig,
 		comment: "has_even_y(R) is false",
 	},
 	{
@@ -432,6 +454,7 @@ var bip340Vector = []struct {
 		msg:     htos("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89"),
 		sig:     htob64("1FA62E331EDBC21C394792D2AB1100A7B432B013DF3F6FF4F99FCB33E0E1515F28890B3EDB6E7189B630448B515CE4F8622A954CFE545735AAEA5134FCCDB2BD"),
 		pass:    false,
+		errKind: sveInvalidSig,
 		comment: "negated message",
 	},
 	{
@@ -441,6 +464,7 @@ var bip340Vector = []struct {
 		msg:     htos("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89"),
 		sig:     htob64("6CFF5C3BA86C69EA4B7376F31A9BCB4F74C1976089B2D9963DA2E5543E177769961764B3AA9B2FFCB6EF947B6887A226E8D7C93E00C5ED0C1834FF0D0C2E6DA6"),
 		pass:    false,
+		errKind: sveInvalidSig,
 		comment: "negated s value",
 	},
 	{
@@ -450,6 +474,7 @@ var bip340Vector = []struct {
 		msg:     htos("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89"),
 		sig:     htob64("0000000000000000000000000000000000000000000000000000000000000000123DDA8328AF9C23A94C1FEECFD123BA4FB73476F0D594DCB65C6425BD186051"),
 		pass:    false,
+		errKind: sveInvalidSig,
 		comment: "sG - eP is infinite. Test fails in single verification if has_even_y(inf) is defined as true and x(inf) as 0",
 	},
 	{
@@ -459,6 +484,7 @@ var bip340Vector = []struct {
 		msg:     htos("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89"),
 		sig:     htob64("00000000000000000000000000000000000000000000000000000000000000017615FBAF5AE28864013C099742DEADB4DBA87F11AC6754F93780D5A1837CF197"),
 		pass:    false,
+		errKind: sveInvalidSig,
 		comment: "sG - eP is infinite. Test fails in single verification if has_even_y(inf) is defined as true and x(inf) as 1",
 	},
 	{
@@ -468,6 +494,7 @@ var bip340Vector = []struct {
 		msg:     htos("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89"),
 		sig:     htob64("4A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D69E89B4C5564D00349106B8497785DD7D1D713A8AE82B32FA79D5F7FC407D39B"),
 		pass:    false,
+		errKind: sveInvalidSig,
 		comment: "sig[0:32] is not an X coordinate on the curve",
 	},
 	{
@@ -477,6 +504,7 @@ var bip340Vector = []struct {
 		msg:     htos("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89"),
 		sig:     htob64("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F69E89B4C5564D00349106B8497785DD7D1D713A8AE82B32FA79D5F7FC407D39B"),
 		pass:    false,
+		errKind: sveInvalidSig,
 		comment: "sig[0:32] is equal to field size",
 	},
 	{
@@ -486,6 +514,7 @@ var bip340Vector = []struct {
 		msg:     htos("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89"),
 		sig:     htob64("6CFF5C3BA86C69EA4B7376F31A9BCB4F74C1976089B2D9963DA2E5543E177769FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141"),
 		pass:    false,
+		errKind: sveInvalidSig,
 		comment: "sig[32:64] is equal to curve order",
 	},
 	{
@@ -495,6 +524,7 @@ var bip340Vector = []struct {
 		msg:     htos("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89"),
 		sig:     htob64("6CFF5C3BA86C69EA4B7376F31A9BCB4F74C1976089B2D9963DA2E5543E17776969E89B4C5564D00349106B8497785DD7D1D713A8AE82B32FA79D5F7FC407D39B"),
 		pass:    false,
+		errKind: sveParsePub,
 		comment: "public key is not a valid X coordinate because it exceeds the field size",
 	},
 	{

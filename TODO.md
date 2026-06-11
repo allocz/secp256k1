@@ -1,4 +1,4 @@
-Improve schnorr tests by setting error kinds
+Add vector tests for ECDSA
 
 Would be nice to PublicKeyFromBytes work with
 * 32 byte X only pubkey with even Y

@@ -62,8 +62,7 @@ func SchnorrKeyPairFromBytes(priv *PrivateKey, pub *PublicKey,
 }
 
 func SchnorrPublicKeyFromBytes(pub *PublicKey, data []byte) error {
-	gosecp.SchnorrPublicKeyFromBytes(pub, data)
-	return nil
+	return gosecp.SchnorrPublicKeyFromBytes(pub, data)
 }
 
 func SchnorrSignatureFromBytes(sig *SchnorrSignature, data []byte) error {

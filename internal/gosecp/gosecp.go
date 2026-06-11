@@ -76,8 +76,8 @@ func SchnorrKeyPairFromBytes(priv *PrivateKey, pub *PublicKey, privb []byte) {
 	schnorrKeyPairFromBytes(priv, pub, privb)
 }
 
-func SchnorrPublicKeyFromBytes(pub *PublicKey, pubb []byte) {
-	schnorrPublicKeyFromBytes(pub, pubb)
+func SchnorrPublicKeyFromBytes(pub *PublicKey, pubb []byte) error {
+	return schnorrPublicKeyFromBytes(pub, pubb)
 }
 
 func SchnorrSignatureFromBytes(sig *SchnorrSignature, data []byte) error {
