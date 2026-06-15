@@ -1,6 +1,8 @@
 package gosecp
 
 import (
+	"fmt"
+
 	secp "github.com/allocz/secp256k1/internal/dcrsecp"
 )
 
@@ -20,10 +22,14 @@ type PublicKey struct {
 	p secp.JacobianPoint
 }
 
-func PublicKeyFromBytes(pub *PublicKey, data []byte) {
+func PublicKeyFromBytes(pub *PublicKey, data []byte) error {
 	pub.p.X.SetByteSlice(data[1:33])
 	pub.p.Y.SetByteSlice(data[33:65])
 	pub.p.Z.SetInt(1)
+	if !isOnCurve(&pub.p.X, &pub.p.Y) {
+		return fmt.Errorf("public key point not in the curve")
+	}
+	return nil
 }
 
 func PublicKeyToBytes(data []byte, pub *PublicKey) {

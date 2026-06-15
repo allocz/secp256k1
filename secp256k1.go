@@ -20,8 +20,7 @@ func PrivateKeyToBytes(data []byte, priv *PrivateKey) {
 type PublicKey = gosecp.PublicKey
 
 func PublicKeyFromBytes(pub *PublicKey, data []byte) error {
-	gosecp.PublicKeyFromBytes(pub, data)
-	return nil
+	return gosecp.PublicKeyFromBytes(pub, data)
 }
 
 func PublicKeyToBytes(data []byte, pub *PublicKey) {
