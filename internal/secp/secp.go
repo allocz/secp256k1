@@ -1,3 +1,5 @@
+//go:build cgo
+
 package secp
 
 /*
@@ -27,7 +29,6 @@ import "C"
 import (
 	"fmt"
 	"runtime"
-	"slices"
 	"unsafe"
 )
 
@@ -42,14 +43,6 @@ type PrivateKey struct {
 }
 
 func PrivateKeyFromBytes(priv *PrivateKey, data []byte) error {
-	if len(data) != 32 {
-		return fmt.Errorf("invalid private key length")
-	}
-	ok := C.secp256k1_ec_seckey_verify(ctx,
-		(*C.uchar)(unsafe.Pointer(&data[0])))
-	if ok == 0 {
-		return fmt.Errorf("invalid private key")
-	}
 	copy(priv.k[0:], data)
 	return nil
 }
@@ -71,28 +64,90 @@ func PublicKeyFromBytes(pub *PublicKey, data []byte) error {
 	return nil
 }
 
-func PublicKeyToBytes(data []byte, pub *PublicKey) {
+func publicKeyToBytesAmd64(data []byte, pub *PublicKey) {
+	wsrc := (*[8]uint64)(unsafe.Pointer(&pub.p))
+
 	data[0] = 0x04
 
-	wsrc := (*[8][8]byte)(unsafe.Pointer(&pub.p))
-	w := (*[8][8]byte)(unsafe.Pointer(&data[1]))
-	w[0] = wsrc[3]
-	w[1] = wsrc[2]
-	w[2] = wsrc[1]
-	w[3] = wsrc[0]
-	w[4] = wsrc[7]
-	w[5] = wsrc[6]
-	w[6] = wsrc[5]
-	w[7] = wsrc[4]
+	data[1] = byte((wsrc[3] >> (7 * 8)))
+	data[2] = byte((wsrc[3] >> (6 * 8)))
+	data[3] = byte((wsrc[3] >> (5 * 8)))
+	data[4] = byte((wsrc[3] >> (4 * 8)))
+	data[5] = byte((wsrc[3] >> (3 * 8)))
+	data[6] = byte((wsrc[3] >> (2 * 8)))
+	data[7] = byte((wsrc[3] >> (1 * 8)))
+	data[8] = byte((wsrc[3] >> (0 * 8)))
 
-	slices.Reverse(w[0][:])
-	slices.Reverse(w[1][:])
-	slices.Reverse(w[2][:])
-	slices.Reverse(w[3][:])
-	slices.Reverse(w[4][:])
-	slices.Reverse(w[5][:])
-	slices.Reverse(w[6][:])
-	slices.Reverse(w[7][:])
+	data[9] = byte((wsrc[2] >> (7 * 8)))
+	data[10] = byte((wsrc[2] >> (6 * 8)))
+	data[11] = byte((wsrc[2] >> (5 * 8)))
+	data[12] = byte((wsrc[2] >> (4 * 8)))
+	data[13] = byte((wsrc[2] >> (3 * 8)))
+	data[14] = byte((wsrc[2] >> (2 * 8)))
+	data[15] = byte((wsrc[2] >> (1 * 8)))
+	data[16] = byte((wsrc[2] >> (0 * 8)))
+
+	data[17] = byte((wsrc[1] >> (7 * 8)))
+	data[18] = byte((wsrc[1] >> (6 * 8)))
+	data[19] = byte((wsrc[1] >> (5 * 8)))
+	data[20] = byte((wsrc[1] >> (4 * 8)))
+	data[21] = byte((wsrc[1] >> (3 * 8)))
+	data[22] = byte((wsrc[1] >> (2 * 8)))
+	data[23] = byte((wsrc[1] >> (1 * 8)))
+	data[24] = byte((wsrc[1] >> (0 * 8)))
+
+	data[25] = byte((wsrc[0] >> (7 * 8)))
+	data[26] = byte((wsrc[0] >> (6 * 8)))
+	data[27] = byte((wsrc[0] >> (5 * 8)))
+	data[28] = byte((wsrc[0] >> (4 * 8)))
+	data[29] = byte((wsrc[0] >> (3 * 8)))
+	data[30] = byte((wsrc[0] >> (2 * 8)))
+	data[31] = byte((wsrc[0] >> (1 * 8)))
+	data[32] = byte((wsrc[0] >> (0 * 8)))
+
+	data[33] = byte((wsrc[7] >> (7 * 8)))
+	data[34] = byte((wsrc[7] >> (6 * 8)))
+	data[35] = byte((wsrc[7] >> (5 * 8)))
+	data[36] = byte((wsrc[7] >> (4 * 8)))
+	data[37] = byte((wsrc[7] >> (3 * 8)))
+	data[38] = byte((wsrc[7] >> (2 * 8)))
+	data[39] = byte((wsrc[7] >> (1 * 8)))
+	data[40] = byte((wsrc[7] >> (0 * 8)))
+
+	data[41] = byte((wsrc[6] >> (7 * 8)))
+	data[42] = byte((wsrc[6] >> (6 * 8)))
+	data[43] = byte((wsrc[6] >> (5 * 8)))
+	data[44] = byte((wsrc[6] >> (4 * 8)))
+	data[45] = byte((wsrc[6] >> (3 * 8)))
+	data[46] = byte((wsrc[6] >> (2 * 8)))
+	data[47] = byte((wsrc[6] >> (1 * 8)))
+	data[48] = byte((wsrc[6] >> (0 * 8)))
+
+	data[49] = byte((wsrc[5] >> (7 * 8)))
+	data[50] = byte((wsrc[5] >> (6 * 8)))
+	data[51] = byte((wsrc[5] >> (5 * 8)))
+	data[52] = byte((wsrc[5] >> (4 * 8)))
+	data[53] = byte((wsrc[5] >> (3 * 8)))
+	data[54] = byte((wsrc[5] >> (2 * 8)))
+	data[55] = byte((wsrc[5] >> (1 * 8)))
+	data[56] = byte((wsrc[5] >> (0 * 8)))
+
+	data[57] = byte((wsrc[4] >> (7 * 8)))
+	data[58] = byte((wsrc[4] >> (6 * 8)))
+	data[59] = byte((wsrc[4] >> (5 * 8)))
+	data[60] = byte((wsrc[4] >> (4 * 8)))
+	data[61] = byte((wsrc[4] >> (3 * 8)))
+	data[62] = byte((wsrc[4] >> (2 * 8)))
+	data[63] = byte((wsrc[4] >> (1 * 8)))
+	data[64] = byte((wsrc[4] >> (0 * 8)))
+}
+
+func publicKeyToBytes(data []byte, pub *PublicKey) {
+	dataLen := len(data)
+	C.secp256k1_ec_pubkey_serialize(ctx,
+		(*C.uchar)(unsafe.Pointer(&data[0])),
+		(*C.size_t)(unsafe.Pointer(&dataLen)),
+		&pub.p, C.SECP256K1_EC_UNCOMPRESSED)
 }
 
 func PublicKeyFromPrivateKey(pub *PublicKey, priv *PrivateKey) {
@@ -107,7 +162,7 @@ type ECDSASignature struct {
 	s C.secp256k1_ecdsa_signature
 }
 
-func ECDSASignatureFromBytes(sig *ECDSASignature, data []byte) error {
+func ecdsaSignatureFromBytes(sig *ECDSASignature, data []byte) error {
 	if len(data) != 64 {
 		return fmt.Errorf("wrong signature size")
 	}
@@ -119,9 +174,167 @@ func ECDSASignatureFromBytes(sig *ECDSASignature, data []byte) error {
 	return nil
 }
 
-func ECDSASignatureToBytes(data []byte, sig *ECDSASignature) {
+func ecdsaSignatureFromBytesAmd64(sig *ECDSASignature, data []byte) error {
+	if len(data) != 64 {
+		return fmt.Errorf("wrong signature size")
+	}
+
+	wsrc := (*[8]uint64)(unsafe.Pointer(&data[0]))
+	wdest := (*[64]byte)(unsafe.Pointer(&sig.s))
+
+	wdest[0] = byte((wsrc[3] >> (7 * 8)))
+	wdest[1] = byte((wsrc[3] >> (6 * 8)))
+	wdest[2] = byte((wsrc[3] >> (5 * 8)))
+	wdest[3] = byte((wsrc[3] >> (4 * 8)))
+	wdest[4] = byte((wsrc[3] >> (3 * 8)))
+	wdest[5] = byte((wsrc[3] >> (2 * 8)))
+	wdest[6] = byte((wsrc[3] >> (1 * 8)))
+	wdest[7] = byte((wsrc[3] >> (0 * 8)))
+
+	wdest[8] = byte((wsrc[2] >> (7 * 8)))
+	wdest[9] = byte((wsrc[2] >> (6 * 8)))
+	wdest[10] = byte((wsrc[2] >> (5 * 8)))
+	wdest[11] = byte((wsrc[2] >> (4 * 8)))
+	wdest[12] = byte((wsrc[2] >> (3 * 8)))
+	wdest[13] = byte((wsrc[2] >> (2 * 8)))
+	wdest[14] = byte((wsrc[2] >> (1 * 8)))
+	wdest[15] = byte((wsrc[2] >> (0 * 8)))
+
+	wdest[16] = byte((wsrc[1] >> (7 * 8)))
+	wdest[17] = byte((wsrc[1] >> (6 * 8)))
+	wdest[18] = byte((wsrc[1] >> (5 * 8)))
+	wdest[19] = byte((wsrc[1] >> (4 * 8)))
+	wdest[20] = byte((wsrc[1] >> (3 * 8)))
+	wdest[21] = byte((wsrc[1] >> (2 * 8)))
+	wdest[22] = byte((wsrc[1] >> (1 * 8)))
+	wdest[23] = byte((wsrc[1] >> (0 * 8)))
+
+	wdest[24] = byte((wsrc[0] >> (7 * 8)))
+	wdest[25] = byte((wsrc[0] >> (6 * 8)))
+	wdest[26] = byte((wsrc[0] >> (5 * 8)))
+	wdest[27] = byte((wsrc[0] >> (4 * 8)))
+	wdest[28] = byte((wsrc[0] >> (3 * 8)))
+	wdest[29] = byte((wsrc[0] >> (2 * 8)))
+	wdest[30] = byte((wsrc[0] >> (1 * 8)))
+	wdest[31] = byte((wsrc[0] >> (0 * 8)))
+
+	wdest[32] = byte((wsrc[7] >> (7 * 8)))
+	wdest[33] = byte((wsrc[7] >> (6 * 8)))
+	wdest[34] = byte((wsrc[7] >> (5 * 8)))
+	wdest[35] = byte((wsrc[7] >> (4 * 8)))
+	wdest[36] = byte((wsrc[7] >> (3 * 8)))
+	wdest[37] = byte((wsrc[7] >> (2 * 8)))
+	wdest[38] = byte((wsrc[7] >> (1 * 8)))
+	wdest[39] = byte((wsrc[7] >> (0 * 8)))
+
+	wdest[40] = byte((wsrc[6] >> (7 * 8)))
+	wdest[41] = byte((wsrc[6] >> (6 * 8)))
+	wdest[42] = byte((wsrc[6] >> (5 * 8)))
+	wdest[43] = byte((wsrc[6] >> (4 * 8)))
+	wdest[44] = byte((wsrc[6] >> (3 * 8)))
+	wdest[45] = byte((wsrc[6] >> (2 * 8)))
+	wdest[46] = byte((wsrc[6] >> (1 * 8)))
+	wdest[47] = byte((wsrc[6] >> (0 * 8)))
+
+	wdest[48] = byte((wsrc[5] >> (7 * 8)))
+	wdest[49] = byte((wsrc[5] >> (6 * 8)))
+	wdest[50] = byte((wsrc[5] >> (5 * 8)))
+	wdest[51] = byte((wsrc[5] >> (4 * 8)))
+	wdest[52] = byte((wsrc[5] >> (3 * 8)))
+	wdest[53] = byte((wsrc[5] >> (2 * 8)))
+	wdest[54] = byte((wsrc[5] >> (1 * 8)))
+	wdest[55] = byte((wsrc[5] >> (0 * 8)))
+
+	wdest[56] = byte((wsrc[4] >> (7 * 8)))
+	wdest[57] = byte((wsrc[4] >> (6 * 8)))
+	wdest[58] = byte((wsrc[4] >> (5 * 8)))
+	wdest[59] = byte((wsrc[4] >> (4 * 8)))
+	wdest[60] = byte((wsrc[4] >> (3 * 8)))
+	wdest[61] = byte((wsrc[4] >> (2 * 8)))
+	wdest[62] = byte((wsrc[4] >> (1 * 8)))
+	wdest[63] = byte((wsrc[4] >> (0 * 8)))
+	return nil
+}
+
+func ecdsaSignatureToBytes(data []byte, sig *ECDSASignature) {
 	C.secp256k1_ecdsa_signature_serialize_compact(ctx,
 		(*C.uchar)(unsafe.Pointer(&data[0])), &sig.s)
+}
+
+func ecdsaSignatureToBytesAmd64(data []byte, sig *ECDSASignature) {
+	wsrc := (*[8]uint64)(unsafe.Pointer(&sig.s))
+
+	data[0] = byte((wsrc[3] >> (7 * 8)))
+	data[1] = byte((wsrc[3] >> (6 * 8)))
+	data[2] = byte((wsrc[3] >> (5 * 8)))
+	data[3] = byte((wsrc[3] >> (4 * 8)))
+	data[4] = byte((wsrc[3] >> (3 * 8)))
+	data[5] = byte((wsrc[3] >> (2 * 8)))
+	data[6] = byte((wsrc[3] >> (1 * 8)))
+	data[7] = byte((wsrc[3] >> (0 * 8)))
+
+	data[8] = byte((wsrc[2] >> (7 * 8)))
+	data[9] = byte((wsrc[2] >> (6 * 8)))
+	data[10] = byte((wsrc[2] >> (5 * 8)))
+	data[11] = byte((wsrc[2] >> (4 * 8)))
+	data[12] = byte((wsrc[2] >> (3 * 8)))
+	data[13] = byte((wsrc[2] >> (2 * 8)))
+	data[14] = byte((wsrc[2] >> (1 * 8)))
+	data[15] = byte((wsrc[2] >> (0 * 8)))
+
+	data[16] = byte((wsrc[1] >> (7 * 8)))
+	data[17] = byte((wsrc[1] >> (6 * 8)))
+	data[18] = byte((wsrc[1] >> (5 * 8)))
+	data[19] = byte((wsrc[1] >> (4 * 8)))
+	data[20] = byte((wsrc[1] >> (3 * 8)))
+	data[21] = byte((wsrc[1] >> (2 * 8)))
+	data[22] = byte((wsrc[1] >> (1 * 8)))
+	data[23] = byte((wsrc[1] >> (0 * 8)))
+
+	data[24] = byte((wsrc[0] >> (7 * 8)))
+	data[25] = byte((wsrc[0] >> (6 * 8)))
+	data[26] = byte((wsrc[0] >> (5 * 8)))
+	data[27] = byte((wsrc[0] >> (4 * 8)))
+	data[28] = byte((wsrc[0] >> (3 * 8)))
+	data[29] = byte((wsrc[0] >> (2 * 8)))
+	data[30] = byte((wsrc[0] >> (1 * 8)))
+	data[31] = byte((wsrc[0] >> (0 * 8)))
+
+	data[32] = byte((wsrc[7] >> (7 * 8)))
+	data[33] = byte((wsrc[7] >> (6 * 8)))
+	data[34] = byte((wsrc[7] >> (5 * 8)))
+	data[35] = byte((wsrc[7] >> (4 * 8)))
+	data[36] = byte((wsrc[7] >> (3 * 8)))
+	data[37] = byte((wsrc[7] >> (2 * 8)))
+	data[38] = byte((wsrc[7] >> (1 * 8)))
+	data[39] = byte((wsrc[7] >> (0 * 8)))
+
+	data[40] = byte((wsrc[6] >> (7 * 8)))
+	data[41] = byte((wsrc[6] >> (6 * 8)))
+	data[42] = byte((wsrc[6] >> (5 * 8)))
+	data[43] = byte((wsrc[6] >> (4 * 8)))
+	data[44] = byte((wsrc[6] >> (3 * 8)))
+	data[45] = byte((wsrc[6] >> (2 * 8)))
+	data[46] = byte((wsrc[6] >> (1 * 8)))
+	data[47] = byte((wsrc[6] >> (0 * 8)))
+
+	data[48] = byte((wsrc[5] >> (7 * 8)))
+	data[49] = byte((wsrc[5] >> (6 * 8)))
+	data[50] = byte((wsrc[5] >> (5 * 8)))
+	data[51] = byte((wsrc[5] >> (4 * 8)))
+	data[52] = byte((wsrc[5] >> (3 * 8)))
+	data[53] = byte((wsrc[5] >> (2 * 8)))
+	data[54] = byte((wsrc[5] >> (1 * 8)))
+	data[55] = byte((wsrc[5] >> (0 * 8)))
+
+	data[56] = byte((wsrc[4] >> (7 * 8)))
+	data[57] = byte((wsrc[4] >> (6 * 8)))
+	data[58] = byte((wsrc[4] >> (5 * 8)))
+	data[59] = byte((wsrc[4] >> (4 * 8)))
+	data[60] = byte((wsrc[4] >> (3 * 8)))
+	data[61] = byte((wsrc[4] >> (2 * 8)))
+	data[62] = byte((wsrc[4] >> (1 * 8)))
+	data[63] = byte((wsrc[4] >> (0 * 8)))
 }
 
 func ECDSASign(sig *ECDSASignature, priv *PrivateKey, hash []byte) error {
