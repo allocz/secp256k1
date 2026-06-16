@@ -151,6 +151,10 @@ func SchnorrSign(sig *SchnorrSignature, msg []byte,
 	}
 
 	var kp C.secp256k1_keypair
+	defer func() {
+		var kpZr C.secp256k1_keypair
+		kp = kpZr
+	}()
 	ok := C.secp256k1_keypair_create(ctx, &kp,
 		(*C.uchar)(unsafe.Pointer(&priv.K[0])))
 	if ok == 0 {

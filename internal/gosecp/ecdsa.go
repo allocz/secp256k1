@@ -7,6 +7,9 @@ import (
 
 func ecdsaSign(sig *ECDSASignature, priv *PrivateKey, hash []byte) {
 	priv2 := secp.PrivateKey{Key: priv.k}
+	defer func() {
+		priv2 = secp.PrivateKey{}
+	}()
 
 	var sig2 ecdsa.Signature
 	ecdsa.Sign(&sig2, &priv2, hash)

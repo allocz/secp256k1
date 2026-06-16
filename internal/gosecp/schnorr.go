@@ -54,7 +54,9 @@ func schnorrSignExt(sig *SchnorrSignature, privKey *PrivateKey, msg []byte,
 	}
 
 	privBytes := privKeyScalar.Bytes()
+	defer clear(privBytes[:])
 	var t schnorrHash
+	defer clear(t[:])
 	schnorrTaggedHash(
 		&t, schnorrTagBIP0340Aux, auxRand[:],
 	)
