@@ -1,28 +1,29 @@
 package gosecp
 
 import (
+	"errors"
+	"fmt"
+
 	secp "github.com/allocz/secp256k1/internal/dcrsecp"
+)
+
+var (
+	errWrongInputSize = errors.New("wrong input size")
 )
 
 type PrivateKey struct {
 	k secp.ModNScalar
 }
 
-func (p *PrivateKey) FromBytes32(data []byte) *PrivateKey {
-	if p == nil {
-		return nil
-	}
+func (p *PrivateKey) FromBytes32(data []byte) error {
 	if len(data) < 32 {
-		return nil
+		return errWrongInputSize
 	}
 	p.k.SetByteSlice(data)
-	return p
+	return nil
 }
 
 func (p *PrivateKey) ToBytes32(data []byte) []byte {
-	if p == nil {
-		return nil
-	}
 	if len(data) < 32 {
 		data = make([]byte, 32)
 	}
@@ -34,64 +35,58 @@ type PublicKey struct {
 	p secp.JacobianPoint
 }
 
-func (p *PublicKey) FromBytes32(data []byte) *PublicKey {
-	if p == nil {
-		return nil
-	}
+func (p *PublicKey) FromBytes32(data []byte) error {
 	if len(data) < 32 {
-		return nil
+		return errWrongInputSize
 	}
 	overflow := p.p.X.SetByteSlice(data[0:32])
 	if overflow {
-		return nil
+		return fmt.Errorf("field value overflow")
 	}
 	ok := secp.DecompressY(&p.p.X, false, &p.p.Y)
 	if !ok {
-		return nil
+		return fmt.Errorf("failed to decompress Y")
 	}
 	p.p.Z.SetInt(1)
-	return p
+	return nil
 }
 
-func (p *PublicKey) FromBytes33(data []byte) *PublicKey {
-	if p == nil {
-		return nil
-	}
+func (p *PublicKey) FromBytes33(data []byte) error {
 	if len(data) < 33 {
-		return nil
+		return errWrongInputSize
 	}
 	overflow := p.p.X.SetByteSlice(data[1:33])
 	if overflow {
-		return nil
+		return fmt.Errorf("field value overflow")
 	}
 	ok := secp.DecompressY(&p.p.X, data[0] == 0x03, &p.p.Y)
 	if !ok {
-		return nil
+		return fmt.Errorf("failed to decompress Y")
 	}
 	p.p.Z.SetInt(1)
-	return p
+	return nil
 }
 
-func (p *PublicKey) FromBytes64(data []byte) *PublicKey {
-	if p == nil {
-		return nil
-	}
+func (p *PublicKey) FromBytes64(data []byte) error {
 	if len(data) < 64 {
-		return nil
+		return errWrongInputSize
 	}
-	p.p.X.SetByteSlice(data[:32])
-	p.p.Y.SetByteSlice(data[32:64])
+	overflow := p.p.X.SetByteSlice(data[:32])
+	if overflow {
+		return fmt.Errorf("field value overflow")
+	}
+	overflow = p.p.Y.SetByteSlice(data[32:64])
+	if overflow {
+		return fmt.Errorf("field value overflow")
+	}
 	p.p.Z.SetInt(1)
 	if !isOnCurve(&p.p.X, &p.p.Y) {
-		return nil
+		return fmt.Errorf("point not in the curve")
 	}
-	return p
+	return nil
 }
 
 func (p *PublicKey) ToBytes32(data []byte) []byte {
-	if p == nil {
-		return nil
-	}
 	if len(data) < 32 {
 		data = make([]byte, 32)
 	}
@@ -103,9 +98,6 @@ func (p *PublicKey) ToBytes32(data []byte) []byte {
 }
 
 func (p *PublicKey) ToBytes33(data []byte) []byte {
-	if p == nil {
-		return nil
-	}
 	if len(data) < 33 {
 		data = make([]byte, 33)
 	}
@@ -118,9 +110,6 @@ func (p *PublicKey) ToBytes33(data []byte) []byte {
 }
 
 func (p *PublicKey) ToBytes64(data []byte) []byte {
-	if p == nil {
-		return nil
-	}
 	if len(data) < 64 {
 		data = make([]byte, 64)
 	}
@@ -129,38 +118,26 @@ func (p *PublicKey) ToBytes64(data []byte) []byte {
 	return data
 }
 
-func (p *PublicKey) FromPrivateKey(priv *PrivateKey) *PublicKey {
-	if p == nil {
-		return nil
-	}
-	if priv == nil {
-		return nil
-	}
+func (p *PublicKey) FromPrivateKey(priv *PrivateKey) error {
 	secp.ScalarBaseMultNonConst(&priv.k, &p.p)
 	p.p.ToAffine()
-	return p
+	return nil
 }
 
 type ECDSASignature struct {
 	r, s secp.ModNScalar
 }
 
-func (e *ECDSASignature) FromBytes64(data []byte) *ECDSASignature {
-	if e == nil {
-		return nil
-	}
+func (e *ECDSASignature) FromBytes64(data []byte) error {
 	if len(data) < 64 {
-		return nil
+		return errWrongInputSize
 	}
 	e.r.SetByteSlice(data[:32])
 	e.s.SetByteSlice(data[32:])
-	return e
+	return nil
 }
 
 func (e *ECDSASignature) ToBytes64(data []byte) []byte {
-	if e == nil {
-		return nil
-	}
 	if len(data) < 64 {
 		data = make([]byte, 64)
 	}
@@ -169,29 +146,17 @@ func (e *ECDSASignature) ToBytes64(data []byte) []byte {
 	return data
 }
 
-func (e *ECDSASignature) Sign(priv *PrivateKey, hash []byte) *ECDSASignature {
-	if e == nil {
-		return nil
-	}
-	if priv == nil {
-		return nil
-	}
+func (e *ECDSASignature) Sign(priv *PrivateKey, hash []byte) error {
 	if len(hash) != 32 {
-		return nil
+		return errWrongInputSize
 	}
 	ecdsaSign(e, priv, hash)
-	return e
+	return nil
 }
 
 func (e *ECDSASignature) Verify(pub *PublicKey, hash []byte) bool {
-	if e == nil {
-		return false
-	}
-	if pub == nil {
-		return nil
-	}
 	if len(hash) != 32 {
-		return nil
+		return false
 	}
 	return ecdsaVerify(e, pub, hash)
 }
@@ -204,29 +169,23 @@ type SchnorrSignature struct {
 func SchnorrKeyPairFromBytes32(priv *PrivateKey, pub *PublicKey,
 	privb []byte) error {
 
-	if priv == nil || pub == nil || len(privb) < 32 {
-		return
+	if len(privb) < 32 {
+		return errWrongInputSize
 	}
 	schnorrKeyPairFromBytes(priv, pub, privb)
 	return nil
 }
 
-func (s *SchnorrSignature) FromBytes64(data []byte) *SchnorrSignature {
-	if s == nil {
-		return nil
-	}
+func (s *SchnorrSignature) FromBytes64(data []byte) error {
 	if len(data) < 64 {
-		return nil
+		return errWrongInputSize
 	}
 	s.r.SetByteSlice(data[:32])
 	s.s.SetByteSlice(data[32:64])
-	return s
+	return nil
 }
 
 func (s *SchnorrSignature) ToBytes64(data []byte) []byte {
-	if s == nil {
-		return nil
-	}
 	if len(data) < 64 {
 		data = make([]byte, 64)
 	}
@@ -236,39 +195,21 @@ func (s *SchnorrSignature) ToBytes64(data []byte) []byte {
 }
 
 func (s *SchnorrSignature) SignExt(priv *PrivateKey, msg []byte,
-	auxRand *[32]byte, fastSign bool) *SchnorrSignature {
+	auxRand *[32]byte, fastSign bool) error {
 
-	if s == nil {
-		return nil
-	}
-	if priv == nil {
-		return nil
-	}
 	err := schnorrSignExt(s, priv, msg, auxRand, fastSign)
 	if err != nil {
-		return nil
+		return err
 	}
-	return s
+	return nil
 }
 
 func (s *SchnorrSignature) Sign(priv *PrivateKey,
-	msg []byte) *SchnorrSignature {
+	msg []byte) error {
 
-	if s == nil {
-		return nil
-	}
-	if priv == nil {
-		return nil
-	}
 	return s.SignExt(priv, msg, nil, false)
 }
 
 func (s *SchnorrSignature) Verify(pub *PublicKey, msg []byte) bool {
-	if s == nil {
-		return false
-	}
-	if pub == nil {
-		return false
-	}
 	return schnorrVerify(s, pub, msg)
 }

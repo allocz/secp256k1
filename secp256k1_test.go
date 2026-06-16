@@ -91,27 +91,29 @@ func testECDSASig(t *testing.T, i int) (ecdsaVectorErr, error) {
 	switch test.expErr {
 
 	case eveNone:
-		notNil(t, priv.FromBytes32(privb[:]))
+		noErr(t, priv.FromBytes32(privb[:]))
 
-		notNil(t, pub.FromBytes64(pubb[1:]))
-		pub2.FromPrivateKey(&priv).ToBytes64(pub2b[1:])
+		noErr(t, pub.FromBytes64(pubb[1:]))
+		noErr(t, pub2.FromPrivateKey(&priv))
+		pub2.ToBytes64(pub2b[1:])
 		eq(t, pubb[1:], pub2b[1:])
 
 		sig.FromBytes64(sigb[:])
-		sig2.Sign(&priv, msgb).ToBytes64(sig2b[:])
+		noErr(t, sig2.Sign(&priv, msgb))
+		sig2.ToBytes64(sig2b[:])
 		eq(t, sigb, sig2b)
 
 		eq(t, true, sig.Verify(&pub, msgb))
 
 	case evePubKeyParse:
-		p := pub.FromBytes64(pubb[1:])
-		if p == nil {
+		err := pub.FromBytes64(pubb[1:])
+		if err != nil {
 			return evePubKeyParse, nil
 		}
 
 	case eveInvalidSig:
-		notNil(t, pub.FromBytes64(pubb[1:]))
-		notNil(t, sig.FromBytes64(sig2b[:]))
+		noErr(t, pub.FromBytes64(pubb[1:]))
+		noErr(t, sig.FromBytes64(sig2b[:]))
 		if !sig.Verify(&pub, msgb) {
 			return eveInvalidSig, nil
 		}
@@ -359,29 +361,29 @@ func schnorrTest(t *testing.T, i int) (schnorrVectorErrKind, error) {
 	)
 	switch {
 	case !isZeroS(test.secKey[:]) && test.errKind == sveNone:
-		eq(t, nil, SchnorrKeyPairFromBytes(&priv, &pub, test.secKey[:]))
+		eq(t, nil, SchnorrKeyPairFromBytes32(&priv, &pub, test.secKey[:]))
 		pub.ToBytes64(pubb[1:])
 		eq(t, pubb[1:33], test.pubKey[:])
-		notNil(t, pub2.FromBytes32(test.pubKey[:]))
+		noErr(t, pub2.FromBytes32(test.pubKey[:]))
 		pub2.ToBytes64(pub2b[:])
 		eq(t, pub2b[0:32], test.pubKey[:])
-		notNil(t, sig.SignExt(&priv, test.msg, &test.auxRand, false))
-		notNil(t, sig2.FromBytes64(test.sig[:]))
+		noErr(t, sig.SignExt(&priv, test.msg, &test.auxRand, false))
+		noErr(t, sig2.FromBytes64(test.sig[:]))
 		eq(t, sig.ToBytes64(sigb[:]), sig2.ToBytes64(sig2b[:]))
 		eq(t, true, sig.Verify(&pub, test.msg))
 		return sve, nil
 
 	case test.errKind == sveNone:
-		notNil(t, pub.FromBytes32(test.pubKey[:]))
-		notNil(t, sig.FromBytes64(test.sig[:]))
+		noErr(t, pub.FromBytes32(test.pubKey[:]))
+		noErr(t, sig.FromBytes64(test.sig[:]))
 		eq(t, true, sig.Verify(&pub, test.msg))
 		return sve, nil
 
 	default:
-		if pub.FromBytes32(test.pubKey[:]) == nil {
+		if pub.FromBytes32(test.pubKey[:]) != nil {
 			return sveParsePub, nil
 		}
-		notNil(t, sig.FromBytes64(test.sig[:]))
+		noErr(t, sig.FromBytes64(test.sig[:]))
 		if !sig.Verify(&pub, test.msg) {
 			return sveInvalidSig, nil
 		}
@@ -425,7 +427,7 @@ func BenchmarkPublicKeyFromBytes(b *testing.B) {
 	}
 
 	if !bytes.Equal(rov.pubb[1:], pub.ToBytes64(pubb[1:])) {
-		b.Errorf("serialized public keys do not match %x %x", rov.pubb[1:], pubb[1:])
+		b.Errorf("serialized public keys do not match")
 	}
 }
 
@@ -522,7 +524,7 @@ func BenchmarkSchnorrKeyPairFromBytes(b *testing.B) {
 	var pubb [65]byte
 
 	for b.Loop() {
-		err := SchnorrKeyPairFromBytes(&priv, &pub, rov.privb[:])
+		err := SchnorrKeyPairFromBytes32(&priv, &pub, rov.privb[:])
 		if err != nil {
 			b.Fatal(err)
 		}

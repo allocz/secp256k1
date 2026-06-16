@@ -14,7 +14,7 @@ func (p *PublicKey) ToBytes64(data []byte) []byte {
 	return p.toBytes64(data)
 }
 
-func (e *ECDSASignature) FromBytes64(data []byte) *ECDSASignature {
+func (e *ECDSASignature) FromBytes64(data []byte) error {
 	return e.fromBytes64(data)
 }
 

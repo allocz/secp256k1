@@ -1,7 +1,6 @@
 package gosecp
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -20,21 +19,6 @@ func schnorrKeyPairFromBytes(priv *PrivateKey, pub *PublicKey, privb []byte) {
 		secp.ScalarBaseMultNonConst(&privS, &pub.p)
 		pub.p.ToAffine()
 	}
-}
-
-func schnorrPublicKeyFromBytes(pub *PublicKey, pubb []byte) error {
-	pub.p.Z.SetInt(1)
-	pub.p.X.SetByteSlice(pubb)
-	var fsizeb [32]byte
-	secp.Params().P.FillBytes(fsizeb[:])
-	if bytes.Compare(pubb[:], fsizeb[:]) > 0 {
-		return fmt.Errorf("pubkey x exceeds field size")
-	}
-	secp.DecompressY(&pub.p.X, false, &pub.p.Y)
-	if !isOnCurve(&pub.p.X, &pub.p.Y) {
-		return fmt.Errorf("pubkey not in the curve")
-	}
-	return nil
 }
 
 func isOnCurve(fx, fy *secp.FieldVal) bool {

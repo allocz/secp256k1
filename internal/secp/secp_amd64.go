@@ -12,7 +12,7 @@ func (p *PublicKey) ToBytes32(data []byte) []byte {
 		data = make([]byte, 32)
 	}
 
-	wsrc := (*[8]uint64)(unsafe.Pointer(&p.p))
+	wsrc := (*[8]uint64)(unsafe.Pointer(&p.p.P))
 
 	if wsrc[4]&0x1 != 0 {
 		return nil
@@ -64,7 +64,7 @@ func (p *PublicKey) ToBytes33(data []byte) []byte {
 	if len(data) < 33 {
 		data = make([]byte, 33)
 	}
-	wsrc := (*[8]uint64)(unsafe.Pointer(&p.p))
+	wsrc := (*[8]uint64)(unsafe.Pointer(&p.p.P))
 
 	data[0] = 0x02
 	if wsrc[4]&0x1 != 0 {
@@ -117,7 +117,7 @@ func (p *PublicKey) ToBytes64(data []byte) []byte {
 	if len(data) < 64 {
 		data = make([]byte, 64)
 	}
-	wsrc := (*[8]uint64)(unsafe.Pointer(&p.p))
+	wsrc := (*[8]uint64)(unsafe.Pointer(&p.p.P))
 
 	data[0] = byte((wsrc[3] >> (7 * 8)))
 	data[1] = byte((wsrc[3] >> (6 * 8)))
@@ -194,15 +194,15 @@ func (p *PublicKey) ToBytes64(data []byte) []byte {
 	return data
 }
 
-func (e *ECDSASignature) FromBytes64(data []byte) *ECDSASignature {
+func (e *ECDSASignature) FromBytes64(data []byte) error {
 	if e == nil {
 		return nil
 	}
 	if len(data) < 64 {
-		return nil
+		return errWrongInputSize
 	}
 	wsrc := (*[8]uint64)(unsafe.Pointer(&data[0]))
-	wdest := (*[64]byte)(unsafe.Pointer(&e.s))
+	wdest := (*[64]byte)(unsafe.Pointer(&e.e.S))
 
 	wdest[0] = byte((wsrc[3] >> (7 * 8)))
 	wdest[1] = byte((wsrc[3] >> (6 * 8)))
@@ -276,7 +276,7 @@ func (e *ECDSASignature) FromBytes64(data []byte) *ECDSASignature {
 	wdest[62] = byte((wsrc[4] >> (1 * 8)))
 	wdest[63] = byte((wsrc[4] >> (0 * 8)))
 
-	return e
+	return nil
 }
 
 func (e *ECDSASignature) ToBytes64(data []byte) []byte {
@@ -286,7 +286,7 @@ func (e *ECDSASignature) ToBytes64(data []byte) []byte {
 	if len(data) < 64 {
 		data = make([]byte, 64)
 	}
-	wsrc := (*[8]uint64)(unsafe.Pointer(&e.s))
+	wsrc := (*[8]uint64)(unsafe.Pointer(&e.e.S))
 
 	data[0] = byte((wsrc[3] >> (7 * 8)))
 	data[1] = byte((wsrc[3] >> (6 * 8)))

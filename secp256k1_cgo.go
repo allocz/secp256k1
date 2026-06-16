@@ -12,7 +12,7 @@ type PublicKey = secp.PublicKey
 
 type ECDSASignature = secp.ECDSASignature
 
-func SchnorrKeyPairFromBytes(priv *PrivateKey, pub *PublicKey,
+func SchnorrKeyPairFromBytes32(priv *PrivateKey, pub *PublicKey,
 	data []byte) error {
 
 	secp.SchnorrKeyPairFromBytes32(priv, pub, data)
