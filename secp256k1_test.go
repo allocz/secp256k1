@@ -391,7 +391,7 @@ func schnorrTest(t *testing.T, i int) (schnorrVectorErrKind, error) {
 	}
 }
 
-func BenchmarkPrivateKeyFromBytes(b *testing.B) {
+func BenchmarkPrivateKeyFromBytes32(b *testing.B) {
 	var privb [32]byte
 	var priv PrivateKey
 
@@ -404,7 +404,7 @@ func BenchmarkPrivateKeyFromBytes(b *testing.B) {
 	}
 }
 
-func BenchmarkPrivateKeyToBytes(b *testing.B) {
+func BenchmarkPrivateKeyToBytes32(b *testing.B) {
 	var privb [32]byte
 	var priv PrivateKey
 	priv.FromBytes32(rov.privb[:])
@@ -418,7 +418,67 @@ func BenchmarkPrivateKeyToBytes(b *testing.B) {
 	}
 }
 
-func BenchmarkPublicKeyFromBytes(b *testing.B) {
+func BenchmarkPublicKeyFromBytes32(b *testing.B) {
+	var pubb [65]byte
+	var pub PublicKey
+
+	for b.Loop() {
+		pub.FromBytes32(rov.pubb[1:])
+	}
+
+	if !bytes.Equal(rov.pubb[1:], pub.ToBytes64(pubb[1:])) {
+		b.Errorf("serialized public keys do not match")
+	}
+}
+
+func BenchmarkPublicKeyToBytes32(b *testing.B) {
+	var pubb [65]byte
+	var pub PublicKey
+	pub.FromBytes64(rov.pubb[1:])
+
+	for b.Loop() {
+		pub.ToBytes32(pubb[1:])
+	}
+
+	if !bytes.Equal(rov.pubb[1:33], pubb[1:33]) {
+		b.Errorf("serialized public keys do not match")
+	}
+}
+
+func BenchmarkPublicKeyFromBytes33(b *testing.B) {
+	var pubinb [33]byte
+	var pubb [65]byte
+	var pub PublicKey
+	copy(pubinb[:], rov.pubb[:])
+	pubinb[0] = 0x02
+
+	for b.Loop() {
+		pub.FromBytes33(pubinb[:])
+	}
+
+	if !bytes.Equal(rov.pubb[1:], pub.ToBytes64(pubb[1:])) {
+		b.Errorf("serialized public keys do not match")
+	}
+}
+
+func BenchmarkPublicKeyToBytes33(b *testing.B) {
+	var pubb [65]byte
+	var pubexpb [33]byte
+	var pub PublicKey
+	copy(pubexpb[:], rov.pubb[:])
+	pubexpb[0] = 0x02
+	pub.FromBytes64(rov.pubb[1:])
+
+	for b.Loop() {
+		pub.ToBytes33(pubb[:])
+	}
+
+	if !bytes.Equal(pubexpb[:], pubb[:33]) {
+		b.Errorf("serialized public keys do not match")
+	}
+}
+
+func BenchmarkPublicKeyFromBytes64(b *testing.B) {
 	var pubb [65]byte
 	var pub PublicKey
 
@@ -431,7 +491,7 @@ func BenchmarkPublicKeyFromBytes(b *testing.B) {
 	}
 }
 
-func BenchmarkPublicKeyToBytes(b *testing.B) {
+func BenchmarkPublicKeyToBytes64(b *testing.B) {
 	var pubb [65]byte
 	var pub PublicKey
 	pub.FromBytes64(rov.pubb[1:])
@@ -528,19 +588,6 @@ func BenchmarkSchnorrKeyPairFromBytes(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-	}
-
-	if !bytes.Equal(rov.pubb[1:], pub.ToBytes64(pubb[1:])) {
-		b.Fatalf("pubkeys does not match %x %x", pubb, rov.pubb)
-	}
-}
-
-func BenchmarkSchnorrPublicKeyFromBytes(b *testing.B) {
-	var pub PublicKey
-	var pubb [65]byte
-
-	for b.Loop() {
-		pub.FromBytes32(rov.pubb[1:])
 	}
 
 	if !bytes.Equal(rov.pubb[1:], pub.ToBytes64(pubb[1:])) {
