@@ -49,16 +49,17 @@ func schnorrSignExt(sig *SchnorrSignature, privKey *PrivateKey, msg []byte,
 
 	var privKeyScalar secp.ModNScalar
 	privKeyScalar.Set(&privKey.k)
+	defer privKeyScalar.Zero()
 
 	if privKeyScalar.IsZero() {
 		return fmt.Errorf("private key is zero")
 	}
 
 	var pub PublicKey
-	PublicKeyFromPrivateKey(&pub, privKey)
+	pub.FromPrivateKey(privKey)
 
 	var pubKeyBytes [33]byte
-	PublicKeyToCompressedBytes(pubKeyBytes[:], &pub)
+	pub.ToBytes33(pubKeyBytes[:])
 	if pubKeyBytes[0] == secp.PubKeyFormatCompressedOdd {
 		privKeyScalar.Negate()
 	}
@@ -245,7 +246,8 @@ func schnorrParsePubKey(pub *secp.PublicKey, pubKeyStr []byte) error {
 
 func schnorrVerify(sig *SchnorrSignature, pub *PublicKey, msg []byte) bool {
 	var pubb [65]byte
-	PublicKeyToBytes(pubb[:], pub)
+	pubb[0] = 0x4
+	pub.ToBytes64(pubb[1:])
 
 	return schnorrVerify3(sig, msg, pubb[1:33]) == nil
 }

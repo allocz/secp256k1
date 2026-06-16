@@ -2,14 +2,22 @@
 
 package secp
 
-func PublicKeyToBytes(data []byte, pub *PublicKey) {
-	publicKeyToBytes(data, pub)
+func (p *PublicKey) ToBytes32(data []byte) []byte {
+	return p.toBytes32(data)
 }
 
-func ECDSASignatureFromBytes(sig *ECDSASignature, data []byte) error {
-	return ecdsaSignatureFromBytes(sig, data)
+func (p *PublicKey) ToBytes33(data []byte) []byte {
+	return p.toBytes33(data)
 }
 
-func ECDSASignatureToBytes(data []byte, sig *ECDSASignature) {
-	ecdsaSignatureToBytes(data, sig)
+func (p *PublicKey) ToBytes64(data []byte) []byte {
+	return p.toBytes64(data)
+}
+
+func (e *ECDSASignature) FromBytes64(data []byte) *ECDSASignature {
+	return e.fromBytes64(data)
+}
+
+func (e *ECDSASignature) ToBytes64(data []byte) []byte {
+	return e.toBytes64(data)
 }

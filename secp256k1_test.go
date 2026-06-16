@@ -91,31 +91,28 @@ func testECDSASig(t *testing.T, i int) (ecdsaVectorErr, error) {
 	switch test.expErr {
 
 	case eveNone:
-		noErr(t, PrivateKeyFromBytes(&priv, privb[:]))
+		notNil(t, priv.FromBytes32(privb[:]))
 
-		noErr(t, PublicKeyFromBytes(&pub, pubb[:]))
-		PublicKeyFromPrivateKey(&pub2, &priv)
-		PublicKeyToBytes(pub2b[:], &pub2)
-		eq(t, pubb, pub2b)
+		notNil(t, pub.FromBytes64(pubb[1:]))
+		pub2.FromPrivateKey(&priv).ToBytes64(pub2b[1:])
+		eq(t, pubb[1:], pub2b[1:])
 
-		noErr(t, ECDSASignatureFromBytes(&sig, sigb[:]))
-		noErr(t, ECDSASign(&sig2, &priv, msgb))
-		ECDSASignatureToBytes(sig2b[:], &sig2)
+		sig.FromBytes64(sigb[:])
+		sig2.Sign(&priv, msgb).ToBytes64(sig2b[:])
 		eq(t, sigb, sig2b)
 
-		eq(t, true, ECDSAVerify(&sig, &pub, msgb))
+		eq(t, true, sig.Verify(&pub, msgb))
 
 	case evePubKeyParse:
-		err := PublicKeyFromBytes(&pub, pubb[:])
-		if err != nil {
+		p := pub.FromBytes64(pubb[1:])
+		if p == nil {
 			return evePubKeyParse, nil
 		}
 
 	case eveInvalidSig:
-		noErr(t, PublicKeyFromBytes(&pub, pubb[:]))
-		noErr(t, ECDSASignatureFromBytes(&sig, sigb[:]))
-		ok := ECDSAVerify(&sig, &pub, msgb)
-		if !ok {
+		notNil(t, pub.FromBytes64(pubb[1:]))
+		notNil(t, sig.FromBytes64(sig2b[:]))
+		if !sig.Verify(&pub, msgb) {
 			return eveInvalidSig, nil
 		}
 	}
@@ -124,7 +121,6 @@ func testECDSASig(t *testing.T, i int) (ecdsaVectorErr, error) {
 }
 
 func TestECDSASig(t *testing.T) {
-	// P: 115792089237316195423570985008687907853269984665640564039457584007908834671663
 	for i, test := range ecdsaTestVector {
 		t.Run(test.name, func(t *testing.T) {
 			errCode, err := testECDSASig(t, i)
@@ -350,93 +346,47 @@ func TestSchnorrSig(t *testing.T) {
 	}
 }
 
-func schnorrTest(_ *testing.T, i int) (schnorrVectorErrKind, error) {
-	test := bip340Vector[i]
-	sve := sveNone
+func schnorrTest(t *testing.T, i int) (schnorrVectorErrKind, error) {
+	var (
+		test = bip340Vector[i]
+		sve  = sveNone
+
+		priv        PrivateKey
+		pub, pub2   PublicKey
+		sig, sig2   SchnorrSignature
+		sigb, sig2b [64]byte
+		pubb, pub2b [65]byte
+	)
 	switch {
 	case !isZeroS(test.secKey[:]) && test.errKind == sveNone:
-		var (
-			priv        PrivateKey
-			pub, pub2   PublicKey
-			sig, sig2   SchnorrSignature
-			pubb, pub2b [65]byte
-		)
-		err := SchnorrKeyPairFromBytes(&priv, &pub, test.secKey[:])
-		if err != nil {
-			return sve, fmt.Errorf("fail to parse keypair: %w",
-				err)
-		}
-		PublicKeyToBytes(pubb[:], &pub)
-		if !bytes.Equal(pubb[1:33], test.pubKey[:]) {
-			return sve, fmt.Errorf("public keys do not match")
-		}
-		err = SchnorrPublicKeyFromBytes(&pub2, test.pubKey[:])
-		if err != nil {
-			return sve, fmt.Errorf("fail to parse pubkey: %w", err)
-		}
-		PublicKeyToBytes(pub2b[:], &pub2)
-		if !bytes.Equal(pub2b[1:33], test.pubKey[:]) {
-			return sve, fmt.Errorf(
-				"serialized public keys do not match")
-		}
-		err = SchnorrSignExt(&sig, &priv, test.msg, &test.auxRand,
-			false)
-		if err != nil {
-			return sve, fmt.Errorf("fail to sign message: %w", err)
-		}
-		err = SchnorrSignatureFromBytes(&sig2, test.sig[:])
-		if err != nil {
-			return sve, fmt.Errorf("fail to parse signature: %w",
-				err)
-		}
-		var sigb, sig2b [64]byte
-		if !bytes.Equal(sig.ToBytes(sigb[:]), sig2.ToBytes(sig2b[:])) {
-			return sve, fmt.Errorf("signatures do not match")
-		}
-		ok := sig.Verify(&pub, test.msg)
-		if !ok {
-			return sve, fmt.Errorf("fail to verify signature")
-		}
+		eq(t, nil, SchnorrKeyPairFromBytes(&priv, &pub, test.secKey[:]))
+		pub.ToBytes64(pubb[1:])
+		eq(t, pubb[1:33], test.pubKey[:])
+		notNil(t, pub2.FromBytes32(test.pubKey[:]))
+		pub2.ToBytes64(pub2b[:])
+		eq(t, pub2b[0:32], test.pubKey[:])
+		notNil(t, sig.SignExt(&priv, test.msg, &test.auxRand, false))
+		notNil(t, sig2.FromBytes64(test.sig[:]))
+		eq(t, sig.ToBytes64(sigb[:]), sig2.ToBytes64(sig2b[:]))
+		eq(t, true, sig.Verify(&pub, test.msg))
 		return sve, nil
 
 	case test.errKind == sveNone:
-		var pub PublicKey
-		var sig SchnorrSignature
-		err := SchnorrPublicKeyFromBytes(&pub, test.pubKey[:])
-		if err != nil {
-			return sve, fmt.Errorf("fail to parse pubkey 2: %w",
-				err)
-		}
-		err = SchnorrSignatureFromBytes(&sig, test.sig[:])
-		if err != nil {
-			return sve, fmt.Errorf("fail to parse signature 2: %w",
-				err)
-		}
-		ok := sig.Verify(&pub, test.msg)
-		if !ok {
-			return sve, fmt.Errorf("fail to verify signature 2")
-		}
+		notNil(t, pub.FromBytes32(test.pubKey[:]))
+		notNil(t, sig.FromBytes64(test.sig[:]))
+		eq(t, true, sig.Verify(&pub, test.msg))
 		return sve, nil
 
 	default:
-		var pub PublicKey
-		var sig SchnorrSignature
-		err := SchnorrPublicKeyFromBytes(&pub, test.pubKey[:])
-		if err != nil {
+		if pub.FromBytes32(test.pubKey[:]) == nil {
 			return sveParsePub, nil
 		}
-		err = SchnorrSignatureFromBytes(&sig, test.sig[:])
-		if err != nil {
-			return sve, fmt.Errorf("fail to parse signature 3: %w",
-				err)
-		}
-		ok := sig.Verify(&pub, test.msg)
-		if !ok {
+		notNil(t, sig.FromBytes64(test.sig[:]))
+		if !sig.Verify(&pub, test.msg) {
 			return sveInvalidSig, nil
 		}
 		return sveNone, fmt.Errorf("expecting failure")
 	}
-
 }
 
 func BenchmarkPrivateKeyFromBytes(b *testing.B) {
@@ -444,11 +394,10 @@ func BenchmarkPrivateKeyFromBytes(b *testing.B) {
 	var priv PrivateKey
 
 	for b.Loop() {
-		PrivateKeyFromBytes(&priv, rov.privb[:])
+		priv.FromBytes32(rov.privb[:])
 	}
 
-	PrivateKeyToBytes(privb[:], &priv)
-	if !bytes.Equal(rov.privb[:], privb[:]) {
+	if !bytes.Equal(rov.privb[:], priv.ToBytes32(privb[:])) {
 		b.Error("serialized private keys do not match")
 	}
 }
@@ -456,10 +405,10 @@ func BenchmarkPrivateKeyFromBytes(b *testing.B) {
 func BenchmarkPrivateKeyToBytes(b *testing.B) {
 	var privb [32]byte
 	var priv PrivateKey
-	PrivateKeyFromBytes(&priv, rov.privb[:])
+	priv.FromBytes32(rov.privb[:])
 
 	for b.Loop() {
-		PrivateKeyToBytes(privb[:], &priv)
+		priv.ToBytes32(privb[:])
 	}
 
 	if !bytes.Equal(rov.privb[:], privb[:]) {
@@ -472,25 +421,24 @@ func BenchmarkPublicKeyFromBytes(b *testing.B) {
 	var pub PublicKey
 
 	for b.Loop() {
-		PublicKeyFromBytes(&pub, rov.pubb[:])
+		pub.FromBytes64(rov.pubb[1:])
 	}
 
-	PublicKeyToBytes(pubb[:], &pub)
-	if !bytes.Equal(rov.pubb[:], pubb[:]) {
-		b.Errorf("serialized public keys do not match")
+	if !bytes.Equal(rov.pubb[1:], pub.ToBytes64(pubb[1:])) {
+		b.Errorf("serialized public keys do not match %x %x", rov.pubb[1:], pubb[1:])
 	}
 }
 
 func BenchmarkPublicKeyToBytes(b *testing.B) {
 	var pubb [65]byte
 	var pub PublicKey
-	PublicKeyFromBytes(&pub, rov.pubb[:])
+	pub.FromBytes64(rov.pubb[1:])
 
 	for b.Loop() {
-		PublicKeyToBytes(pubb[:], &pub)
+		pub.ToBytes64(pubb[1:])
 	}
 
-	if !bytes.Equal(rov.pubb[:], pubb[:]) {
+	if !bytes.Equal(rov.pubb[1:], pubb[1:]) {
 		b.Errorf("serialized public keys do not match")
 	}
 }
@@ -499,14 +447,13 @@ func BenchmarkPublicKeyFromPrivateKey(b *testing.B) {
 	var priv PrivateKey
 	var pubb [65]byte
 	var pub PublicKey
-	PrivateKeyFromBytes(&priv, rov.privb[:])
+	priv.FromBytes32(rov.privb[:])
 
 	for b.Loop() {
-		PublicKeyFromPrivateKey(&pub, &priv)
+		pub.FromPrivateKey(&priv)
 	}
 
-	PublicKeyToBytes(pubb[:], &pub)
-	if !bytes.Equal(rov.pubb[:], pubb[:]) {
+	if !bytes.Equal(rov.pubb[1:], pub.ToBytes64(pubb[1:])) {
 		b.Errorf("serialized public keys do not match")
 	}
 }
@@ -516,11 +463,10 @@ func BenchmarkECDSASignatureFromBytes(b *testing.B) {
 	var sig ECDSASignature
 
 	for b.Loop() {
-		ECDSASignatureFromBytes(&sig, rov.sigb[:])
+		sig.FromBytes64(rov.sigb[:])
 	}
 
-	ECDSASignatureToBytes(sigb[:], &sig)
-	if !bytes.Equal(rov.sigb[:], sigb[:]) {
+	if !bytes.Equal(rov.sigb[:], sig.ToBytes64(sigb[:])) {
 		b.Errorf("serialized signatures do not match")
 	}
 }
@@ -528,10 +474,10 @@ func BenchmarkECDSASignatureFromBytes(b *testing.B) {
 func BenchmarkECDSASignatureToBytes(b *testing.B) {
 	var sigb [64]byte
 	var sig ECDSASignature
-	ECDSASignatureFromBytes(&sig, rov.sigb[:])
+	sig.FromBytes64(rov.sigb[:])
 
 	for b.Loop() {
-		ECDSASignatureToBytes(sigb[:], &sig)
+		sig.ToBytes64(sigb[:])
 	}
 
 	if !bytes.Equal(rov.sigb[:], sigb[:]) {
@@ -543,14 +489,13 @@ func BenchmarkECDSASign(b *testing.B) {
 	var sigb [64]byte
 	var sig ECDSASignature
 	var priv PrivateKey
-	PrivateKeyFromBytes(&priv, rov.privb[:])
+	priv.FromBytes32(rov.privb[:])
 
 	for b.Loop() {
-		ECDSASign(&sig, &priv, rov.msghash[:])
+		sig.Sign(&priv, rov.msghash[:])
 	}
 
-	ECDSASignatureToBytes(sigb[:], &sig)
-	if !bytes.Equal(rov.sigb[:], sigb[:]) {
+	if !bytes.Equal(rov.sigb[:], sig.ToBytes64(sigb[:])) {
 		b.Errorf("serialized signatures do not match")
 	}
 }
@@ -559,11 +504,11 @@ func BenchmarkECDSAVerify(b *testing.B) {
 	var sig ECDSASignature
 	var pub PublicKey
 	var ok bool
-	ECDSASignatureFromBytes(&sig, rov.sigb[:])
-	PublicKeyFromBytes(&pub, rov.pubb[:])
+	sig.FromBytes64(rov.sigb[:])
+	pub.FromBytes64(rov.pubb[1:])
 
 	for b.Loop() {
-		ok = ECDSAVerify(&sig, &pub, rov.msghash[:])
+		ok = sig.Verify(&pub, rov.msghash[:])
 	}
 
 	if !ok {
@@ -575,14 +520,15 @@ func BenchmarkSchnorrKeyPairFromBytes(b *testing.B) {
 	var priv PrivateKey
 	var pub PublicKey
 	var pubb [65]byte
+
 	for b.Loop() {
 		err := SchnorrKeyPairFromBytes(&priv, &pub, rov.privb[:])
 		if err != nil {
 			b.Fatal(err)
 		}
 	}
-	PublicKeyToBytes(pubb[:], &pub)
-	if !bytes.Equal(pubb[:], rov.pubb[:]) {
+
+	if !bytes.Equal(rov.pubb[1:], pub.ToBytes64(pubb[1:])) {
 		b.Fatalf("pubkeys does not match %x %x", pubb, rov.pubb)
 	}
 }
@@ -590,14 +536,12 @@ func BenchmarkSchnorrKeyPairFromBytes(b *testing.B) {
 func BenchmarkSchnorrPublicKeyFromBytes(b *testing.B) {
 	var pub PublicKey
 	var pubb [65]byte
+
 	for b.Loop() {
-		err := SchnorrPublicKeyFromBytes(&pub, rov.pubb[1:])
-		if err != nil {
-			b.Fatal(err)
-		}
+		pub.FromBytes32(rov.pubb[1:])
 	}
-	PublicKeyToBytes(pubb[:], &pub)
-	if !bytes.Equal(pubb[:], rov.pubb[:]) {
+
+	if !bytes.Equal(rov.pubb[1:], pub.ToBytes64(pubb[1:])) {
 		b.Fatalf("pubkeys does not match %x %x", pubb, rov.pubb)
 	}
 }
@@ -605,13 +549,12 @@ func BenchmarkSchnorrPublicKeyFromBytes(b *testing.B) {
 func BenchmarkSchnorrSignatureFromBytes(b *testing.B) {
 	var sig SchnorrSignature
 	var sigb [64]byte
+
 	for b.Loop() {
-		err := SchnorrSignatureFromBytes(&sig, rov.ssigb[:])
-		if err != nil {
-			b.FailNow()
-		}
+		sig.FromBytes64(rov.ssigb[:])
 	}
-	if !bytes.Equal(rov.ssigb[:], sig.ToBytes(sigb[:])) {
+
+	if !bytes.Equal(rov.ssigb[:], sig.ToBytes64(sigb[:])) {
 		b.Fatal("sig does not match")
 	}
 }
@@ -619,13 +562,12 @@ func BenchmarkSchnorrSignatureFromBytes(b *testing.B) {
 func BenchmarkSchnorrSignatureToBytes(b *testing.B) {
 	var sig SchnorrSignature
 	var sigb [64]byte
-	err := SchnorrSignatureFromBytes(&sig, rov.ssigb[:])
-	if err != nil {
-		b.FailNow()
-	}
+	sig.FromBytes64(rov.ssigb[:])
+
 	for b.Loop() {
-		sig.ToBytes(sigb[:])
+		sig.ToBytes64(sigb[:])
 	}
+
 	if !bytes.Equal(rov.ssigb[:], sigb[:]) {
 		b.Fatal("sig does not match")
 	}
@@ -637,17 +579,13 @@ func BenchmarkSchnorrSign(b *testing.B) {
 		sig  SchnorrSignature
 		sigb [64]byte
 	)
-	PrivateKeyFromBytes(&priv, rov.privb[:])
+	priv.FromBytes32(rov.privb[:])
 
 	for b.Loop() {
-		err := SchnorrSign(&sig, &priv, rov.msghash[:])
-		if err != nil {
-			b.Fatal(err)
-		}
+		sig.Sign(&priv, rov.msghash[:])
 	}
 
-	sig.ToBytes(sigb[:])
-	if !bytes.Equal(rov.ssigb[:], sigb[:]) {
+	if !bytes.Equal(rov.ssigb[:], sig.ToBytes64(sigb[:])) {
 		b.Fatalf("sig does not match %x %x", rov.ssigb, sigb)
 	}
 }
@@ -658,8 +596,8 @@ func BenchmarkSchnorrVerify(b *testing.B) {
 		sig SchnorrSignature
 		ok  bool
 	)
-	PublicKeyFromBytes(&pub, rov.pubb[:])
-	SchnorrSignatureFromBytes(&sig, rov.ssigb[:])
+	pub.FromBytes64(rov.pubb[1:])
+	sig.FromBytes64(rov.ssigb[:])
 
 	for b.Loop() {
 		ok = sig.Verify(&pub, rov.msghash[:])
@@ -732,6 +670,14 @@ func noErr(t *testing.T, err error) {
 	}
 	_, f, l, _ := runtime.Caller(1)
 	t.Fatalf("%s:%d: %v", f, l, err)
+}
+
+func notNil[T any](t *testing.T, ptr *T) {
+	if ptr != nil {
+		return
+	}
+	_, f, l, _ := runtime.Caller(1)
+	t.Fatalf("%s:%d: expecting not nil", f, l)
 }
 
 func eq[T any](t *testing.T, a T, b T) {

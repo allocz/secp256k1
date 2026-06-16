@@ -1,3 +1,5 @@
+Add benchmark for Pubkey to and from bytes *
+
 Add ECDSASignatureFromDERBytes(sigOut, data, lax bool)
 
 Add PrivateKey.ToBytes()

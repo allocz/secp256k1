@@ -1,8 +1,6 @@
 package gosecp
 
 import (
-	"fmt"
-
 	secp "github.com/allocz/secp256k1/internal/dcrsecp"
 )
 
@@ -10,67 +8,192 @@ type PrivateKey struct {
 	k secp.ModNScalar
 }
 
-func PrivateKeyFromBytes(priv *PrivateKey, data []byte) {
-	priv.k.SetByteSlice(data)
+func (p *PrivateKey) FromBytes32(data []byte) *PrivateKey {
+	if p == nil {
+		return nil
+	}
+	if len(data) < 32 {
+		return nil
+	}
+	p.k.SetByteSlice(data)
+	return p
 }
 
-func PrivateKeyToBytes(data []byte, priv *PrivateKey) {
-	priv.k.PutBytesUnchecked(data)
+func (p *PrivateKey) ToBytes32(data []byte) []byte {
+	if p == nil {
+		return nil
+	}
+	if len(data) < 32 {
+		data = make([]byte, 32)
+	}
+	p.k.PutBytesUnchecked(data)
+	return data
 }
 
 type PublicKey struct {
 	p secp.JacobianPoint
 }
 
-func PublicKeyFromBytes(pub *PublicKey, data []byte) error {
-	pub.p.X.SetByteSlice(data[1:33])
-	pub.p.Y.SetByteSlice(data[33:65])
-	pub.p.Z.SetInt(1)
-	if !isOnCurve(&pub.p.X, &pub.p.Y) {
-		return fmt.Errorf("public key point not in the curve")
+func (p *PublicKey) FromBytes32(data []byte) *PublicKey {
+	if p == nil {
+		return nil
 	}
-	return nil
+	if len(data) < 32 {
+		return nil
+	}
+	overflow := p.p.X.SetByteSlice(data[0:32])
+	if overflow {
+		return nil
+	}
+	ok := secp.DecompressY(&p.p.X, false, &p.p.Y)
+	if !ok {
+		return nil
+	}
+	p.p.Z.SetInt(1)
+	return p
 }
 
-func PublicKeyToBytes(data []byte, pub *PublicKey) {
-	data[0] = 0x04 // Uncompressed
-	pub.p.X.PutBytesUnchecked(data[1:])
-	pub.p.Y.PutBytesUnchecked(data[33:])
+func (p *PublicKey) FromBytes33(data []byte) *PublicKey {
+	if p == nil {
+		return nil
+	}
+	if len(data) < 33 {
+		return nil
+	}
+	overflow := p.p.X.SetByteSlice(data[1:33])
+	if overflow {
+		return nil
+	}
+	ok := secp.DecompressY(&p.p.X, data[0] == 0x03, &p.p.Y)
+	if !ok {
+		return nil
+	}
+	p.p.Z.SetInt(1)
+	return p
 }
 
-func PublicKeyToCompressedBytes(data []byte, pub *PublicKey) {
+func (p *PublicKey) FromBytes64(data []byte) *PublicKey {
+	if p == nil {
+		return nil
+	}
+	if len(data) < 64 {
+		return nil
+	}
+	p.p.X.SetByteSlice(data[:32])
+	p.p.Y.SetByteSlice(data[32:64])
+	p.p.Z.SetInt(1)
+	if !isOnCurve(&p.p.X, &p.p.Y) {
+		return nil
+	}
+	return p
+}
+
+func (p *PublicKey) ToBytes32(data []byte) []byte {
+	if p == nil {
+		return nil
+	}
+	if len(data) < 32 {
+		data = make([]byte, 32)
+	}
+	p.p.X.PutBytesUnchecked(data)
+	if p.p.Y.IsOdd() {
+		return nil
+	}
+	return data
+}
+
+func (p *PublicKey) ToBytes33(data []byte) []byte {
+	if p == nil {
+		return nil
+	}
+	if len(data) < 33 {
+		data = make([]byte, 33)
+	}
 	data[0] = 0x02
-	pub.p.X.PutBytesUnchecked(data[1:])
-	if pub.p.Y.IsOdd() {
+	p.p.X.PutBytesUnchecked(data[1:])
+	if p.p.Y.IsOdd() {
 		data[0] = 0x03
 	}
+	return data
 }
 
-func PublicKeyFromPrivateKey(pub *PublicKey, priv *PrivateKey) {
-	secp.ScalarBaseMultNonConst(&priv.k, &pub.p)
-	pub.p.ToAffine()
+func (p *PublicKey) ToBytes64(data []byte) []byte {
+	if p == nil {
+		return nil
+	}
+	if len(data) < 64 {
+		data = make([]byte, 64)
+	}
+	p.p.X.PutBytesUnchecked(data)
+	p.p.Y.PutBytesUnchecked(data[32:])
+	return data
+}
+
+func (p *PublicKey) FromPrivateKey(priv *PrivateKey) *PublicKey {
+	if p == nil {
+		return nil
+	}
+	if priv == nil {
+		return nil
+	}
+	secp.ScalarBaseMultNonConst(&priv.k, &p.p)
+	p.p.ToAffine()
+	return p
 }
 
 type ECDSASignature struct {
 	r, s secp.ModNScalar
 }
 
-func ECDSASignatureFromBytes(sig *ECDSASignature, data []byte) {
-	sig.r.SetByteSlice(data[:32])
-	sig.s.SetByteSlice(data[32:])
+func (e *ECDSASignature) FromBytes64(data []byte) *ECDSASignature {
+	if e == nil {
+		return nil
+	}
+	if len(data) < 64 {
+		return nil
+	}
+	e.r.SetByteSlice(data[:32])
+	e.s.SetByteSlice(data[32:])
+	return e
 }
 
-func ECDSASignatureToBytes(data []byte, sig *ECDSASignature) {
-	sig.r.PutBytesUnchecked(data)
-	sig.s.PutBytesUnchecked(data[32:])
+func (e *ECDSASignature) ToBytes64(data []byte) []byte {
+	if e == nil {
+		return nil
+	}
+	if len(data) < 64 {
+		data = make([]byte, 64)
+	}
+	e.r.PutBytesUnchecked(data)
+	e.s.PutBytesUnchecked(data[32:])
+	return data
 }
 
-func ECDSASign(sig *ECDSASignature, priv *PrivateKey, hash []byte) {
-	ecdsaSign(sig, priv, hash)
+func (e *ECDSASignature) Sign(priv *PrivateKey, hash []byte) *ECDSASignature {
+	if e == nil {
+		return nil
+	}
+	if priv == nil {
+		return nil
+	}
+	if len(hash) != 32 {
+		return nil
+	}
+	ecdsaSign(e, priv, hash)
+	return e
 }
 
-func ECDSAVerify(sig *ECDSASignature, pub *PublicKey, hash []byte) bool {
-	return ecdsaVerify(sig, pub, hash)
+func (e *ECDSASignature) Verify(pub *PublicKey, hash []byte) bool {
+	if e == nil {
+		return false
+	}
+	if pub == nil {
+		return nil
+	}
+	if len(hash) != 32 {
+		return nil
+	}
+	return ecdsaVerify(e, pub, hash)
 }
 
 type SchnorrSignature struct {
@@ -78,32 +201,74 @@ type SchnorrSignature struct {
 	s secp.ModNScalar
 }
 
-func SchnorrKeyPairFromBytes(priv *PrivateKey, pub *PublicKey, privb []byte) {
+func SchnorrKeyPairFromBytes32(priv *PrivateKey, pub *PublicKey,
+	privb []byte) error {
+
+	if priv == nil || pub == nil || len(privb) < 32 {
+		return
+	}
 	schnorrKeyPairFromBytes(priv, pub, privb)
-}
-
-func SchnorrPublicKeyFromBytes(pub *PublicKey, pubb []byte) error {
-	return schnorrPublicKeyFromBytes(pub, pubb)
-}
-
-func SchnorrSignatureFromBytes(sig *SchnorrSignature, data []byte) error {
-	sig.r.SetByteSlice(data[:32])
-	sig.s.SetByteSlice(data[32:64])
 	return nil
 }
 
-func (s *SchnorrSignature) ToBytes(data []byte) []byte {
+func (s *SchnorrSignature) FromBytes64(data []byte) *SchnorrSignature {
+	if s == nil {
+		return nil
+	}
+	if len(data) < 64 {
+		return nil
+	}
+	s.r.SetByteSlice(data[:32])
+	s.s.SetByteSlice(data[32:64])
+	return s
+}
+
+func (s *SchnorrSignature) ToBytes64(data []byte) []byte {
+	if s == nil {
+		return nil
+	}
+	if len(data) < 64 {
+		data = make([]byte, 64)
+	}
 	s.r.PutBytesUnchecked(data[:32])
-	s.s.PutBytesUnchecked(data[32:64])
+	s.s.PutBytesUnchecked(data[32:])
 	return data
 }
 
-func SchnorrSignExt(sig *SchnorrSignature, priv *PrivateKey, msg []byte,
-	auxRand *[32]byte, fastSign bool) error {
+func (s *SchnorrSignature) SignExt(priv *PrivateKey, msg []byte,
+	auxRand *[32]byte, fastSign bool) *SchnorrSignature {
 
-	return schnorrSignExt(sig, priv, msg, auxRand, fastSign)
+	if s == nil {
+		return nil
+	}
+	if priv == nil {
+		return nil
+	}
+	err := schnorrSignExt(s, priv, msg, auxRand, fastSign)
+	if err != nil {
+		return nil
+	}
+	return s
+}
+
+func (s *SchnorrSignature) Sign(priv *PrivateKey,
+	msg []byte) *SchnorrSignature {
+
+	if s == nil {
+		return nil
+	}
+	if priv == nil {
+		return nil
+	}
+	return s.SignExt(priv, msg, nil, false)
 }
 
 func (s *SchnorrSignature) Verify(pub *PublicKey, msg []byte) bool {
+	if s == nil {
+		return false
+	}
+	if pub == nil {
+		return false
+	}
 	return schnorrVerify(s, pub, msg)
 }
