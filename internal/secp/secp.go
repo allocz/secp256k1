@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/allocz/secp256k1/internal/secp/binding"
+	"github.com/allocz/secp256k1/internal/der"
 )
 
 var (
@@ -127,12 +128,30 @@ func (e *ECDSASignature) fromBytes64(data []byte) error {
 	return nil
 }
 
+func (e *ECDSASignature) FromDER(data []byte, lax bool) error {
+	var sig64 [64]byte
+	err := der.Decode(sig64[:], data, lax)
+	if err != nil {
+		return err
+	}
+	return e.FromBytes64(sig64[:])
+}
+
 func (e *ECDSASignature) toBytes64(data []byte) []byte {
 	if len(data) < 64 {
 		data = make([]byte, 64)
 	}
 	binding.ECDSASignatureSerializeCompact(data, &e.e)
 	return data
+}
+
+func (e *ECDSASignature) ToDER72(data []byte) []byte {
+	if len(data) < 72 {
+		data = make([]byte, 72)
+	}
+	var sig64 [64]byte
+	e.ToBytes64(sig64[:])
+	return der.Encode(data, sig64[:])
 }
 
 func (e *ECDSASignature) Sign(priv *PrivateKey, hash []byte) error {
