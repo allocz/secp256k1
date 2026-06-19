@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/allocz/secp256k1/internal/secp/binding"
 	"github.com/allocz/secp256k1/internal/der"
+	"github.com/allocz/secp256k1/internal/secp/binding"
 )
 
 var (
@@ -237,9 +237,7 @@ func (s *SchnorrSignature) SignExt(priv *PrivateKey, msg []byte,
 	return nil
 }
 
-func (s *SchnorrSignature) Sign(priv *PrivateKey,
-	msg []byte) error {
-
+func (s *SchnorrSignature) Sign(priv *PrivateKey, msg []byte) error {
 	return s.SignExt(priv, msg, nil, false)
 }
 

@@ -1,15 +1,38 @@
-//go:build cgo
+#!/usr/bin/env bash
+####################
+set -e
+####################
+readonly RELDIR="$(dirname ${0})"
+readonly HELP_MSG='usage: < help >'
+####################
+eprintln() {
+	! [ -z "${1}" ] || eprintln "eprintln: missing message"
+	printf "${1}\n" 1>&2
+	exit 1
+}
+
+run() {
+	gen "secp256k1.go" "!cgo" "gosecp"
+	gen "secp256k1_cgo.go" "cgo" "secp"
+}
+
+gen() {
+	local file=${1}
+	local bconstraints=${2}
+	local ecpkg=${3}
+	cat << EOF > "${file}"
+//go:build ${bconstraints}
 
 package secp256k1
 
 // GENERATED FILE, DO NOT EDIT!
 
 import (
-	"github.com/allocz/secp256k1/internal/secp"
+	"github.com/allocz/secp256k1/internal/${ecpkg}"
 )
 
 type PrivateKey struct {
-	p secp.PrivateKey
+	p ${ecpkg}.PrivateKey
 }
 
 func (p *PrivateKey) FromBytes32(data []byte) error {
@@ -23,7 +46,7 @@ func (p *PrivateKey) ToBytes32(data []byte) []byte {
 }
 
 type PublicKey struct {
-	p secp.PublicKey
+	p ${ecpkg}.PublicKey
 }
 
 // FromBytes32 initializes from even public key.
@@ -64,7 +87,7 @@ func (p *PublicKey) ToBytes64(data []byte) []byte {
 }
 
 type ECDSASignature struct {
-	s secp.ECDSASignature
+	s ${ecpkg}.ECDSASignature
 }
 
 // FromBytes64 initializes from R and S, 32 bytes each.
@@ -103,12 +126,12 @@ func (s *ECDSASignature) Verify(pub *PublicKey, hash []byte) bool {
 func SchnorrKeyPairFromBytes32(priv *PrivateKey, pub *PublicKey,
 	data []byte) error {
 
-	secp.SchnorrKeyPairFromBytes32(&priv.p, &pub.p, data)
+	${ecpkg}.SchnorrKeyPairFromBytes32(&priv.p, &pub.p, data)
 	return nil
 }
 
 type SchnorrSignature struct {
-	s secp.SchnorrSignature
+	s ${ecpkg}.SchnorrSignature
 }
 
 // FromBytes64 initializes s with R and S from the data buffer.
@@ -141,3 +164,8 @@ func (s *SchnorrSignature) Sign(priv *PrivateKey, msg []byte) error {
 func (s *SchnorrSignature) Verify(pub *PublicKey, msg []byte) bool {
 	return s.s.Verify(&pub.p, msg)
 }
+EOF
+}
+
+####################
+run
