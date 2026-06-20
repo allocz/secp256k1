@@ -17,7 +17,7 @@ func (p *PrivateKey) FromBytes32(data []byte) error {
 }
 
 // ToBytes32 serializes the private key into the passed 32 byte buffer and
-// returns it
+// returns it.
 func (p *PrivateKey) ToBytes32(data []byte) []byte {
 	return p.p.ToBytes32(data)
 }

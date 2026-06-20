@@ -1,4 +1,4 @@
-//go:build cgo && (!amd64 || forceportable)
+//go:build cgo && ((!amd64 && !arm64) || forceportable)
 
 package secp
 
