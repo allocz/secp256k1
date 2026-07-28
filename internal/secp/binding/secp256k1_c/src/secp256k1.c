@@ -466,8 +466,7 @@ int secp256k1_ecdsa_verify(const secp256k1_context* ctx, const secp256k1_ecdsa_s
 
     secp256k1_scalar_set_b32(&m, msghash32, NULL);
     secp256k1_ecdsa_signature_load(ctx, &r, &s, sig);
-    return (!secp256k1_scalar_is_high(&s) &&
-            secp256k1_pubkey_load(ctx, &q, pubkey) &&
+    return (secp256k1_pubkey_load(ctx, &q, pubkey) &&
             secp256k1_ecdsa_sig_verify(&r, &s, &q, &m));
 }
 

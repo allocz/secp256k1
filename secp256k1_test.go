@@ -33,6 +33,12 @@ var ecdsaTestVector = []struct {
 		sig:  "B81960B4969B423199DEA555F562A66B7F49DEA5836A0168361F1A5F8A3C829803EEA7D7EE4462E3E9D6D59220F950564CAEB77F7B1CDB42AF3C83B013FF3B2F",
 	},
 	{
+		name: "high s signature is valid",
+		pub:  "04CC71EB30D653C0C3163990C47B976F3FB3F37CCCDCBEDB169A1DFEF58BBFBFAFF7D8A473E7E2E6D317B87BAFE8BDE97E3CF8F065DEC022B51D11FCDD0D348AC4",
+		msg:  "259D83E4174D7A386542918B53294B6D0AFFD82B2939D37F5066D296F36914C2",
+		sig:  "3F16C6F40162AB686621EF3000B04E75418A0C0CB2D8AEBEAC894AE360AC1E78DDC15ECDFC3507AC48E1681A33EB60996631BF6BF5BC0A0682C4DB743CE7CA2B",
+	},
+	{
 		name:   "pub X == P",
 		pub:    "0411579208923731619542357098500868790785326998466564056403945758400790883467166336B6FBCB60B5B3D4F1551AC45E5FFC4936466E7D98F6C7C0EC736539F74691A6",
 		expErr: evePubKeyParse,
@@ -72,6 +78,16 @@ var ecdsaTestVector = []struct {
 	},
 }
 
+func noEmptyString(strs ...string) bool {
+	for _, s := range strs {
+		if s != "" {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
 func testECDSASig(t *testing.T, i int) (ecdsaVectorErr, error) {
 	test := ecdsaTestVector[i]
 	var (
@@ -88,9 +104,12 @@ func testECDSASig(t *testing.T, i int) (ecdsaVectorErr, error) {
 	pubb = htob65(test.pub)
 	msgb = htos(test.msg)
 	sigb = htob64(test.sig)
-	switch test.expErr {
+	exp := test.expErr
 
-	case eveNone:
+	switch {
+	case exp == eveNone && noEmptyString(test.priv, test.pub, test.msg,
+		test.sig):
+
 		noErr(t, priv.FromBytes32(privb[:]))
 
 		noErr(t, pub.FromBytes64(pubb[1:]))
@@ -105,13 +124,18 @@ func testECDSASig(t *testing.T, i int) (ecdsaVectorErr, error) {
 
 		eq(t, true, sig.Verify(&pub, msgb))
 
-	case evePubKeyParse:
+	case exp == eveNone && noEmptyString(test.pub, test.msg, test.sig):
+		noErr(t, pub.FromBytes64(pubb[1:]))
+		noErr(t, sig.FromBytes64(sigb[:]))
+		eq(t, true, sig.Verify(&pub, msgb))
+
+	case exp == evePubKeyParse:
 		err := pub.FromBytes64(pubb[1:])
 		if err != nil {
 			return evePubKeyParse, nil
 		}
 
-	case eveInvalidSig:
+	case exp == eveInvalidSig:
 		noErr(t, pub.FromBytes64(pubb[1:]))
 		noErr(t, sig.FromBytes64(sig2b[:]))
 		if !sig.Verify(&pub, msgb) {
@@ -748,7 +772,7 @@ func noErr(t *testing.T, err error) {
 		return
 	}
 	_, f, l, _ := runtime.Caller(1)
-	t.Fatalf("%s:%d: %v", f, l, err)
+	t.Fatalf("\r\t%s:%d: %v", f, l, err)
 }
 
 func notNil[T any](t *testing.T, ptr *T) {
