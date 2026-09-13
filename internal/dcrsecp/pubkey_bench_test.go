@@ -14,7 +14,7 @@ import (
 func BenchmarkPubKeyDecompress(b *testing.B) {
 	// Randomly generated keypair.
 	// Private key: 9e0699c91ca1e3b7e3c9ba71eb71c89890872be97576010fe593fbf3fd57e66d
-	pubKeyX := new(FieldVal).SetHex("d2e670a19c6d753d1a6d8b20bd045df8a08fb162cf508956c31268c6d81ffdab")
+	pubKeyX := mustFieldVal("d2e670a19c6d753d1a6d8b20bd045df8a08fb162cf508956c31268c6d81ffdab")
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -34,8 +34,7 @@ func BenchmarkParsePubKeyCompressed(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		var pubKey PublicKey
-		ParsePubKey(&pubKey, pubKeyBytes)
+		ParsePubKey(pubKeyBytes)
 	}
 }
 
@@ -50,7 +49,6 @@ func BenchmarkParsePubKeyUncompressed(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		var pubKey PublicKey
-		ParsePubKey(&pubKey, pubKeyBytes)
+		ParsePubKey(pubKeyBytes)
 	}
 }
