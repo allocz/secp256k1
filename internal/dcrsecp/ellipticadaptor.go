@@ -221,12 +221,12 @@ func (curve *KoblitzCurve) ScalarBaseMult(k []byte) (*big.Int, *big.Int) {
 
 // X returns the x coordinate of the public key.
 func (p *PublicKey) X() *big.Int {
-	return new(big.Int).SetBytes(p.Xf.Bytes()[:])
+	return new(big.Int).SetBytes(p.x.Bytes()[:])
 }
 
 // Y returns the y coordinate of the public key.
 func (p *PublicKey) Y() *big.Int {
-	return new(big.Int).SetBytes(p.Yf.Bytes()[:])
+	return new(big.Int).SetBytes(p.y.Bytes()[:])
 }
 
 // ToECDSA returns the public key as a *ecdsa.PublicKey.
@@ -286,9 +286,9 @@ var secp256k1 = &KoblitzCurve{
 	},
 }
 
-// S256 returns an elliptic.Curve which implements secp256k1.
+// S256 returns an [elliptic.Curve] which implements secp256k1.
 //
-// Deprecated: The standard library elliptic.Curve interface is now deprecated
+// Deprecated: The standard library [elliptic.Curve] interface is now deprecated
 // and callers should interact with the safer, and much faster, specialized
 // methods instead.
 func S256() *KoblitzCurve {

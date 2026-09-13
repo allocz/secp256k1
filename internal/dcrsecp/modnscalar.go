@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2024 The Decred developers
+// Copyright (c) 2020-2026 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -15,7 +15,7 @@ import (
 //     https://www.secg.org/sec2-v2.pdf
 //
 //   [HAC]: Handbook of Applied Cryptography Menezes, van Oorschot, Vanstone.
-//     http://cacr.uwaterloo.ca/hac/
+//     https://cacr.uwaterloo.ca/hac/
 
 // Many elliptic curve operations require working with scalars in a finite field
 // characterized by the order of the group underlying the secp256k1 curve.
@@ -95,12 +95,6 @@ const (
 	uint32Mask = 0xffffffff
 )
 
-var (
-	// zero32 is an array of 32 bytes used for the purposes of zeroing and is
-	// defined here to avoid extra allocations.
-	zero32 = [32]byte{}
-)
-
 // ModNScalar implements optimized 256-bit constant-time fixed-precision
 // arithmetic over the secp256k1 group order. This means all arithmetic is
 // performed modulo:
@@ -169,14 +163,7 @@ func (s *ModNScalar) Set(val *ModNScalar) *ModNScalar {
 // already set to zero.  This function can be useful to clear an existing scalar
 // for reuse.
 func (s *ModNScalar) Zero() {
-	s.n[0] = 0
-	s.n[1] = 0
-	s.n[2] = 0
-	s.n[3] = 0
-	s.n[4] = 0
-	s.n[5] = 0
-	s.n[6] = 0
-	s.n[7] = 0
+	s.n = [8]uint32{}
 }
 
 // IsZeroBit returns 1 when the scalar is equal to zero or 0 otherwise in
@@ -184,8 +171,8 @@ func (s *ModNScalar) Zero() {
 //
 // Note that a bool is not used here because it is not possible in Go to convert
 // from a bool to numeric value in constant time and many constant-time
-// operations require a numeric value.  See IsZero for the version that returns
-// a bool.
+// operations require a numeric value.  See [ModNScalar.IsZero] for the version
+// that returns a bool.
 func (s *ModNScalar) IsZeroBit() uint32 {
 	// The scalar can only be zero if no bits are set in any of the words.
 	bits := s.n[0] | s.n[1] | s.n[2] | s.n[3] | s.n[4] | s.n[5] | s.n[6] | s.n[7]
@@ -209,41 +196,6 @@ func (s *ModNScalar) SetInt(ui uint32) *ModNScalar {
 	s.Zero()
 	s.n[0] = ui
 	return s
-}
-
-// constantTimeEq returns 1 if a == b or 0 otherwise in constant time.
-func constantTimeEq(a, b uint32) uint32 {
-	return uint32((uint64(a^b) - 1) >> 63)
-}
-
-// constantTimeNotEq returns 1 if a != b or 0 otherwise in constant time.
-func constantTimeNotEq(a, b uint32) uint32 {
-	return ^uint32((uint64(a^b)-1)>>63) & 1
-}
-
-// constantTimeLess returns 1 if a < b or 0 otherwise in constant time.
-func constantTimeLess(a, b uint32) uint32 {
-	return uint32((uint64(a) - uint64(b)) >> 63)
-}
-
-// constantTimeLessOrEq returns 1 if a <= b or 0 otherwise in constant time.
-func constantTimeLessOrEq(a, b uint32) uint32 {
-	return uint32((uint64(a) - uint64(b) - 1) >> 63)
-}
-
-// constantTimeGreater returns 1 if a > b or 0 otherwise in constant time.
-func constantTimeGreater(a, b uint32) uint32 {
-	return constantTimeLess(b, a)
-}
-
-// constantTimeGreaterOrEq returns 1 if a >= b or 0 otherwise in constant time.
-func constantTimeGreaterOrEq(a, b uint32) uint32 {
-	return constantTimeLessOrEq(b, a)
-}
-
-// constantTimeMin returns min(a,b) in constant time.
-func constantTimeMin(a, b uint32) uint32 {
-	return b ^ ((a ^ b) & -constantTimeLess(a, b))
 }
 
 // overflows determines if the current scalar is greater than or equal to the
@@ -344,7 +296,7 @@ func (s *ModNScalar) SetBytes(b *[32]byte) uint32 {
 
 // zeroArray32 zeroes the provided 32-byte buffer.
 func zeroArray32(b *[32]byte) {
-	copy(b[:], zero32[:])
+	*b = [32]byte{}
 }
 
 // SetByteSlice interprets the provided slice as a 256-bit big-endian unsigned
@@ -420,23 +372,24 @@ func (s *ModNScalar) PutBytesUnchecked(b []byte) {
 // PutBytes unpacks the scalar to a 32-byte big-endian value using the passed
 // byte array in constant time.
 //
-// There is a similar function, PutBytesUnchecked, which unpacks the scalar into
-// a slice that must have at least 32 bytes available.  This version is provided
-// since it can be useful to write directly into an array that is type checked.
+// There is a similar function, [ModNScalar.PutBytesUnchecked], which unpacks
+// the scalar into a slice that must have at least 32 bytes available.  This
+// version is provided since it can be useful to write directly into an array
+// that is type checked.
 //
-// Alternatively, there is also Bytes, which unpacks the scalar into a new array
-// and returns that which can sometimes be more ergonomic in applications that
-// aren't concerned about an additional copy.
+// Alternatively, there is also [ModNScalar.Bytes], which unpacks the scalar
+// into a new array and returns that which can sometimes be more ergonomic in
+// applications that aren't concerned about an additional copy.
 func (s *ModNScalar) PutBytes(b *[32]byte) {
 	s.PutBytesUnchecked(b[:])
 }
 
 // Bytes unpacks the scalar to a 32-byte big-endian value in constant time.
 //
-// See PutBytes and PutBytesUnchecked for variants that allow an array or slice
-// to be passed which can be useful to cut down on the number of allocations
-// by allowing the caller to reuse a buffer or write directly into part of a
-// larger buffer.
+// See [ModNScalar.PutBytes] and [ModNScalar.PutBytesUnchecked] for variants
+// that allow an array or slice to be passed which can be useful to cut down on
+// the number of allocations by allowing the caller to reuse a buffer or write
+// directly into part of a larger buffer.
 func (s *ModNScalar) Bytes() [32]byte {
 	var b [32]byte
 	s.PutBytesUnchecked(b[:])
@@ -1054,22 +1007,24 @@ func (s *ModNScalar) Negate() *ModNScalar {
 	return s.NegateVal(s)
 }
 
+// intPool is used to reduce allocations of [big.Int] limbs while calculating
+// inverse modulo on [ModNScalar].
 type intPool struct {
 	pool sync.Pool
 }
 
-func (i *intPool) Put(v *big.Int) {
+func (i *intPool) put(v *big.Int) {
 	v.SetInt64(0)
 	i.pool.Put(v)
 }
 
-func (i *intPool) Get() *big.Int {
+func (i *intPool) get() *big.Int {
 	return i.pool.Get().(*big.Int)
 }
 
 var intP = intPool{
 	pool: sync.Pool{
-		New: func() any {
+		New: func() interface{} {
 			return new(big.Int)
 		},
 	},
@@ -1083,13 +1038,19 @@ var intP = intPool{
 func (s *ModNScalar) InverseValNonConst(val *ModNScalar) *ModNScalar {
 	// This is making use of big integers for now.  Ideally it will be replaced
 	// with an implementation that does not depend on big integers.
-	var valBytes [32]byte
-	val.PutBytes(&valBytes)
-	bigVal := intP.Get().SetBytes(valBytes[:])
+	valBytes := val.Bytes()
+
+	// Reuse [big.Int] to avoid limb allocation.
+	bigVal := intP.get().SetBytes(valBytes[:])
 	bigVal.ModInverse(bigVal, curveParams.N)
-	bigVal.FillBytes(valBytes[:])
-	s.SetBytes(&valBytes)
-	intP.Put(bigVal)
+	var bigBytes [32]byte
+	bigVal.FillBytes(bigBytes[:])
+	s.SetBytes(&bigBytes)
+
+	// Cleanup.
+	zeroArray32(&bigBytes)
+	intP.put(bigVal)
+
 	return s
 }
 

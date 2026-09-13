@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2014 The btcsuite developers
-// Copyright (c) 2015-2024 The Decred developers
+// Copyright (c) 2015-2026 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"hash"
-	"sync"
 )
 
 // References:
@@ -80,81 +79,27 @@ func (h *hmacsha256) ResetKey(key []byte) {
 	h.initKey(key)
 }
 
-// Resets the HMAC-SHA256 to its initial state using the current key.
+// Reset resets the HMAC-SHA256 to its initial state using the current key.
 func (h *hmacsha256) Reset() {
 	h.inner.Reset()
 	h.inner.Write(h.ipad[:])
 }
 
 // Sum returns the hash of the written data.
-func (h *hmacsha256) Sum2(outBuf, tmpBuf []byte) []byte {
+func (h *hmacsha256) Sum() []byte {
 	h.outer.Reset()
 	h.outer.Write(h.opad[:])
-	h.outer.Write(h.inner.Sum(tmpBuf))
-	outBuf = h.outer.Sum(outBuf)
-	return outBuf
+	h.outer.Write(h.inner.Sum(nil))
+	return h.outer.Sum(nil)
 }
 
-var Dummy = make([]byte, 0, 1<<30)
-
-type hmacPool struct {
-	p sync.Pool
-}
-
-func (h *hmacPool) Get(key []byte) *hmacsha256 {
-	hs := h.p.Get().(*hmacsha256)
-	hs.initKey(key)
-	return hs
-}
-
-func (h *hmacPool) Put(hs *hmacsha256) {
-	hs.inner.Reset()
-	hs.outer.Reset()
-	*hs = hmacsha256{
-		inner: hs.inner,
-		outer: hs.outer,
-	}
-	h.p.Put(hs)
-}
-
-var hmacP = hmacPool{
-	p: sync.Pool{
-		New: func() any {
-			h := new(hmacsha256)
-			h.inner = sha256.New()
-			h.outer = sha256.New()
-			return h
-		},
-	},
-}
-
-const (
-	// keyBufSize is the size of privKeyLen + hashLen + extraLen +
-	// versionLen
-	keyBufSize       = 32 + 32 + 32 + 16
-	bufPoolMinBufCap = keyBufSize
-	bufPoolSize      = 4
-)
-
-type bufPool struct {
-	p sync.Pool
-}
-
-func (b *bufPool) Get() *[bufPoolSize][bufPoolMinBufCap]byte {
-	return b.p.Get().(*[bufPoolSize][bufPoolMinBufCap]byte)
-}
-
-func (b *bufPool) Put(bufs *[bufPoolSize][bufPoolMinBufCap]byte) {
-	clear(bufs[:])
-	b.p.Put(bufs)
-}
-
-var bufP = bufPool{
-	p: sync.Pool{
-		New: func() any {
-			return &[bufPoolSize][bufPoolMinBufCap]byte{}
-		},
-	},
+// newHMACSHA256 returns a new HMAC-SHA256 hasher using the provided key.
+func newHMACSHA256(key []byte) *hmacsha256 {
+	h := new(hmacsha256)
+	h.inner = sha256.New()
+	h.outer = sha256.New()
+	h.initKey(key)
+	return h
 }
 
 // NonceRFC6979 generates a nonce deterministically according to RFC 6979 using
@@ -169,9 +114,7 @@ var bufP = bufPool{
 // that results in a valid signature in the extremely unlikely event the
 // original nonce produced results in an invalid signature (e.g. R == 0).
 // Signing code should start with 0 and increment it if necessary.
-func NonceRFC6979(nonceOut *ModNScalar, privKey []byte, hash []byte,
-	extra []byte, version []byte, extraIterations uint32) {
-
+func NonceRFC6979(privKey []byte, hash []byte, extra []byte, version []byte, extraIterations uint32) *ModNScalar {
 	// Input to HMAC is the 32-byte private key and the 32-byte hash.  In
 	// addition, it may include the optional 32-byte extra data and 16-byte
 	// version.  Create a fixed-size array to avoid extra allocs and slice it
@@ -182,14 +125,7 @@ func NonceRFC6979(nonceOut *ModNScalar, privKey []byte, hash []byte,
 		extraLen   = 32
 		versionLen = 16
 	)
-	var keyBuf, k, v, tmp []byte
-	{
-		bufs := bufP.Get()
-		defer bufP.Put(bufs)
-		keyBuf, k, v, tmp = bufs[0][:], bufs[1][:], bufs[2][:],
-			bufs[3][:]
-	}
-	keyBuf = keyBuf[:privKeyLen+hashLen+extraLen+versionLen]
+	var keyBuf [privKeyLen + hashLen + extraLen + versionLen]byte
 
 	// Truncate rightmost bytes of private key and hash if they are too long and
 	// leave left padding of zeros when they're too short.
@@ -225,8 +161,7 @@ func NonceRFC6979(nonceOut *ModNScalar, privKey []byte, hash []byte,
 	// function in this optimized implementation, the result is just the hash
 	// length, so avoid the extra calculations.  Also, since it isn't modified,
 	// start with a global value.
-	v = v[:len(oneInitializer)]
-	copy(v, oneInitializer)
+	v := oneInitializer
 
 	// Step C (Go zeroes all allocated memory).
 	//
@@ -236,8 +171,7 @@ func NonceRFC6979(nonceOut *ModNScalar, privKey []byte, hash []byte,
 	// As above, since the hash length is a multiple of 8 for the chosen hash
 	// function in this optimized implementation, the result is just the hash
 	// length, so avoid the extra calculations.
-	k = k[:hashLen]
-	copy(k, zeroInitializer[:hashLen])
+	k := zeroInitializer[:hashLen]
 
 	// Step D.
 	//
@@ -245,19 +179,18 @@ func NonceRFC6979(nonceOut *ModNScalar, privKey []byte, hash []byte,
 	//
 	// Note that key is the "int2octets(x) || bits2octets(h1)" portion along
 	// with potential additional data as described by section 3.6 of the RFC.
-	hasher := hmacP.Get(k)
-	defer hmacP.Put(hasher)
+	hasher := newHMACSHA256(k)
 	hasher.Write(oneInitializer)
 	hasher.Write(singleZero)
 	hasher.Write(key)
-	k = hasher.Sum2(k[:0], tmp[:0])
+	k = hasher.Sum()
 
 	// Step E.
 	//
 	// V = HMAC_K(V)
 	hasher.ResetKey(k)
 	hasher.Write(v)
-	v = hasher.Sum2(v[:0], tmp[:0])
+	v = hasher.Sum()
 
 	// Step F.
 	//
@@ -269,14 +202,14 @@ func NonceRFC6979(nonceOut *ModNScalar, privKey []byte, hash []byte,
 	hasher.Write(v)
 	hasher.Write(singleOne)
 	hasher.Write(key)
-	k = hasher.Sum2(k[:0], tmp[:0])
+	k = hasher.Sum()
 
 	// Step G.
 	//
 	// V = HMAC_K(V)
 	hasher.ResetKey(k)
 	hasher.Write(v)
-	v = hasher.Sum2(v[:0], tmp[:0])
+	v = hasher.Sum()
 
 	// Step H.
 	//
@@ -297,7 +230,7 @@ func NonceRFC6979(nonceOut *ModNScalar, privKey []byte, hash []byte,
 		// loop or create an intermediate T.
 		hasher.Reset()
 		hasher.Write(v)
-		v = hasher.Sum2(v[:0], tmp[:0])
+		v = hasher.Sum()
 
 		// Step H3.
 		//
@@ -307,11 +240,12 @@ func NonceRFC6979(nonceOut *ModNScalar, privKey []byte, hash []byte,
 		// Otherwise, compute:
 		// K = HMAC_K(V || 0x00)
 		// V = HMAC_K(V)
-		overflow := nonceOut.SetByteSlice(v)
-		if !overflow && !nonceOut.IsZero() {
+		var secret ModNScalar
+		overflow := secret.SetByteSlice(v)
+		if !overflow && !secret.IsZero() {
 			generated++
 			if generated > extraIterations {
-				return
+				return &secret
 			}
 		}
 
@@ -319,11 +253,11 @@ func NonceRFC6979(nonceOut *ModNScalar, privKey []byte, hash []byte,
 		hasher.Reset()
 		hasher.Write(v)
 		hasher.Write(singleZero)
-		k = hasher.Sum2(k[:0], tmp[:0])
+		k = hasher.Sum()
 
 		// V = HMAC_K(V)
 		hasher.ResetKey(k)
 		hasher.Write(v)
-		v = hasher.Sum2(v[:0], tmp[:0])
+		v = hasher.Sum()
 	}
 }

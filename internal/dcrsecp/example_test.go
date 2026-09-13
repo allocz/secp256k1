@@ -1,5 +1,5 @@
 // Copyright (c) 2014 The btcsuite developers
-// Copyright (c) 2015-2020 The Decred developers
+// Copyright (c) 2015-2026 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -16,9 +16,9 @@ import (
 	"github.com/allocz/secp256k1/internal/dcrsecp"
 )
 
-// This example demonstrates use of GenerateSharedSecret to encrypt a message
-// for a recipient's public key, and subsequently decrypt the message using the
-// recipient's private key.
+// This example demonstrates use of [secp256k1.GenerateSharedSecret] to encrypt
+// a message for a recipient's public key, and subsequently decrypt the message
+// using the recipient's private key.
 func Example_encryptDecryptMessage() {
 	newAEAD := func(key []byte) (cipher.AEAD, error) {
 		block, err := aes.NewCipher(key)
@@ -36,8 +36,7 @@ func Example_encryptDecryptMessage() {
 		fmt.Println(err)
 		return
 	}
-	var pubKey secp256k1.PublicKey
-	err = secp256k1.ParsePubKey(&pubKey, pubKeyBytes)
+	pubKey, err := secp256k1.ParsePubKey(pubKeyBytes)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -53,7 +52,7 @@ func Example_encryptDecryptMessage() {
 	ephemeralPubKey := ephemeralPrivKey.PubKey().SerializeCompressed()
 
 	// Using ECDHE, derive a shared symmetric key for encryption of the plaintext.
-	cipherKey := sha256.Sum256(secp256k1.GenerateSharedSecret(ephemeralPrivKey, &pubKey))
+	cipherKey := sha256.Sum256(secp256k1.GenerateSharedSecret(ephemeralPrivKey, pubKey))
 
 	// Seal the message using an AEAD.  Here we use AES-256-GCM.
 	// The ephemeral public key must be included in this message, and becomes
@@ -98,8 +97,7 @@ func Example_encryptDecryptMessage() {
 	// brevity.
 	pubKeyLen := binary.LittleEndian.Uint32(ciphertext[:4])
 	senderPubKeyBytes := ciphertext[4 : 4+pubKeyLen]
-	var senderPubKey secp256k1.PublicKey
-	err = secp256k1.ParsePubKey(&senderPubKey, senderPubKeyBytes)
+	senderPubKey, err := secp256k1.ParsePubKey(senderPubKeyBytes)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -107,7 +105,7 @@ func Example_encryptDecryptMessage() {
 
 	// Derive the key used to seal the message, this time from the
 	// recipient's private key and the sender's public key.
-	recoveredCipherKey := sha256.Sum256(secp256k1.GenerateSharedSecret(privKey, &senderPubKey))
+	recoveredCipherKey := sha256.Sum256(secp256k1.GenerateSharedSecret(privKey, senderPubKey))
 
 	// Open the sealed message.
 	aead, err = newAEAD(recoveredCipherKey[:])

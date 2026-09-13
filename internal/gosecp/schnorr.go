@@ -222,7 +222,7 @@ func schnorrParsePubKey(pub *secp.PublicKey, pubKeyStr []byte) error {
 	copy(keyCompressed[1:], pubKeyStr)
 
 	var pub2 secp.PublicKey
-	err := secp.ParsePubKey(&pub2, keyCompressed[:])
+	err := secp.ParsePubKeyZeroAlloc(&pub2, keyCompressed[:])
 	if err != nil {
 		return err
 	}
@@ -250,10 +250,12 @@ func schnorrVerify3(sig *SchnorrSignature, hash []byte,
 		return fmt.Errorf("pubkey point is not on curve")
 	}
 
+	var pubX, pubY secp.FieldVal
+	pubKey.PutXY(&pubX, &pubY)
 	var rBytes [32]byte
 	sig.r.PutBytesUnchecked(rBytes[:])
 	var pubXBytes [32]byte
-	pubKey.Xf.PutBytes(&pubXBytes)
+	pubX.PutBytes(&pubXBytes)
 
 	var commitment schnorrHash
 	schnorrTaggedHash(&commitment, schnorrTagBIP0340Challenge, rBytes[:],

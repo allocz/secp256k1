@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2014 The btcsuite developers
-// Copyright (c) 2015-2024 The Decred developers
+// Copyright (c) 2015-2026 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -67,46 +67,25 @@ const (
 // uncompressed and compressed SEC (Standards for Efficient Cryptography)
 // formats.
 type PublicKey struct {
-	Xf FieldVal
-	Yf FieldVal
+	x FieldVal
+	y FieldVal
 }
 
 // NewPublicKey instantiates a new public key with the given x and y
 // coordinates.
 //
-// It should be noted that, unlike ParsePubKey, since this accepts arbitrary x
+// It should be noted that, unlike [ParsePubKey], since this accepts arbitrary x
 // and y coordinates, it allows creation of public keys that are not valid
-// points on the secp256k1 curve.  The IsOnCurve method of the returned instance
-// can be used to determine validity.
+// points on the secp256k1 curve.  The [PublicKey.IsOnCurve] method of the
+// returned instance can be used to determine validity.
 func NewPublicKey(x, y *FieldVal) *PublicKey {
 	var pubKey PublicKey
-	pubKey.Xf.Set(x)
-	pubKey.Yf.Set(y)
+	pubKey.x.Set(x)
+	pubKey.y.Set(y)
 	return &pubKey
 }
 
-// ParsePubKey parses a secp256k1 public key encoded according to the format
-// specified by ANSI X9.62-1998, which means it is also compatible with the
-// SEC (Standards for Efficient Cryptography) specification which is a subset of
-// the former.  In other words, it supports the uncompressed, compressed, and
-// hybrid formats as follows:
-//
-// Compressed:
-//
-//	<format byte = 0x02/0x03><32-byte X coordinate>
-//
-// Uncompressed:
-//
-//	<format byte = 0x04><32-byte X coordinate><32-byte Y coordinate>
-//
-// Hybrid:
-//
-//	<format byte = 0x05/0x06><32-byte X coordinate><32-byte Y coordinate>
-//
-// NOTE: The hybrid format makes little sense in practice an therefore this
-// package will not produce public keys serialized in this format.  However,
-// this function will properly parse them since they exist in the wild.
-func ParsePubKey(pub *PublicKey, serialized []byte) error {
+func (p *PublicKey) parse(serialized []byte) error {
 	var x, y FieldVal
 	switch len(serialized) {
 	case PubKeyBytesLenUncompressed:
@@ -184,9 +163,38 @@ func ParsePubKey(pub *PublicKey, serialized []byte) error {
 		return makeError(ErrPubKeyInvalidLen, str)
 	}
 
-	pub.Xf = x
-	pub.Yf = y
+	p.x.Set(&x)
+	p.y.Set(&y)
 	return nil
+}
+
+// ParsePubKey parses a secp256k1 public key encoded according to the format
+// specified by ANSI X9.62-1998, which means it is also compatible with the
+// SEC (Standards for Efficient Cryptography) specification which is a subset of
+// the former.  In other words, it supports the uncompressed, compressed, and
+// hybrid formats as follows:
+//
+// Compressed:
+//
+//	<format byte = 0x02/0x03><32-byte X coordinate>
+//
+// Uncompressed:
+//
+//	<format byte = 0x04><32-byte X coordinate><32-byte Y coordinate>
+//
+// Hybrid:
+//
+//	<format byte = 0x05/0x06><32-byte X coordinate><32-byte Y coordinate>
+//
+// NOTE: The hybrid format makes little sense in practice an therefore this
+// package will not produce public keys serialized in this format.  However,
+// this function will properly parse them since they exist in the wild.
+func ParsePubKey(serialized []byte) (*PublicKey, error) {
+	var key PublicKey
+	if err := key.parse(serialized); err != nil {
+		return nil, err
+	}
+	return &key, nil
 }
 
 // SerializeUncompressed serializes a public key in the 65-byte uncompressed
@@ -195,8 +203,8 @@ func (p PublicKey) SerializeUncompressed() []byte {
 	// 0x04 || 32-byte x coordinate || 32-byte y coordinate
 	var b [PubKeyBytesLenUncompressed]byte
 	b[0] = PubKeyFormatUncompressed
-	p.Xf.PutBytesUnchecked(b[1:33])
-	p.Yf.PutBytesUnchecked(b[33:65])
+	p.x.PutBytesUnchecked(b[1:33])
+	p.y.PutBytesUnchecked(b[33:65])
 	return b[:]
 }
 
@@ -204,14 +212,14 @@ func (p PublicKey) SerializeUncompressed() []byte {
 func (p PublicKey) SerializeCompressed() []byte {
 	// Choose the format byte depending on the oddness of the Y coordinate.
 	format := PubKeyFormatCompressedEven
-	if p.Yf.IsOdd() {
+	if p.y.IsOdd() {
 		format = PubKeyFormatCompressedOdd
 	}
 
 	// 0x02 or 0x03 || 32-byte x coordinate
 	var b [PubKeyBytesLenCompressed]byte
 	b[0] = format
-	p.Xf.PutBytesUnchecked(b[1:33])
+	p.x.PutBytesUnchecked(b[1:33])
 	return b[:]
 }
 
@@ -219,20 +227,20 @@ func (p PublicKey) SerializeCompressed() []byte {
 // if both public keys are equivalent.  A public key is equivalent to another,
 // if they both have the same X and Y coordinates.
 func (p *PublicKey) IsEqual(otherPubKey *PublicKey) bool {
-	return p.Xf.Equals(&otherPubKey.Xf) && p.Yf.Equals(&otherPubKey.Yf)
+	return p.x.Equals(&otherPubKey.x) && p.y.Equals(&otherPubKey.y)
 }
 
 // AsJacobian converts the public key into a Jacobian point with Z=1 and stores
 // the result in the provided result param.  This allows the public key to be
 // treated a Jacobian point in the secp256k1 group in calculations.
 func (p *PublicKey) AsJacobian(result *JacobianPoint) {
-	result.X.Set(&p.Xf)
-	result.Y.Set(&p.Yf)
+	result.X.Set(&p.x)
+	result.Y.Set(&p.y)
 	result.Z.SetInt(1)
 }
 
 // IsOnCurve returns whether or not the public key represents a point on the
 // secp256k1 curve.
 func (p *PublicKey) IsOnCurve() bool {
-	return isOnCurve(&p.Xf, &p.Yf)
+	return isOnCurve(&p.x, &p.y)
 }

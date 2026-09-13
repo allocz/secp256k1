@@ -224,7 +224,6 @@ func (s *SchnorrSignature) SignExt(priv *PrivateKey, msg []byte,
 }
 
 func (s *SchnorrSignature) Sign(priv *PrivateKey, msg []byte) error {
-
 	return s.SignExt(priv, msg, nil, false)
 }
 

@@ -17,7 +17,7 @@ import (
 
 var (
 	// oneModN is simply the number 1 as a mod n scalar.
-	oneModN = hexToModNScalar("1")
+	oneModN = mustModNScalar("1")
 
 	// endoLambda is the positive version of the lambda constant used in the
 	// endomorphism.  It is stored here for convenience and to avoid recomputing
@@ -93,11 +93,15 @@ func randJacobian(t *testing.T, rng *rand.Rand) *JacobianPoint {
 // jacobianPointFromHex decodes the passed big-endian hex strings into a
 // Jacobian point with its internal fields set to the resulting values.  Only
 // the first 32-bytes are used.
+//
+// This is only provided for the hard-coded constants so errors in the source
+// code can be detected.  It will only (and must only) be called with hard-coded
+// values.
 func jacobianPointFromHex(x, y, z string) JacobianPoint {
 	var p JacobianPoint
-	p.X.SetHex(x)
-	p.Y.SetHex(y)
-	p.Z.SetHex(z)
+	p.X = *mustFieldVal(x)
+	p.Y = *mustFieldVal(y)
+	p.Z = *mustFieldVal(z)
 	return p
 }
 
@@ -828,7 +832,7 @@ func TestScalarBaseMultJacobian(t *testing.T) {
 		// Parse test data.
 		want := jacobianPointFromHex(test.x1, test.y1, test.z1)
 		wantAffine := jacobianPointFromHex(test.x2, test.y2, "01")
-		k := hexToModNScalar(test.k)
+		k := mustModNScalar(test.k)
 
 		// Ensure the test data is using points that are actually on the curve
 		// (or the point at infinity).
@@ -941,7 +945,7 @@ func TestSplitK(t *testing.T) {
 	// produced scalars.
 	h := "7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0"
 	negOne := new(ModNScalar).NegateVal(oneModN)
-	halfOrder := hexToModNScalar(h)
+	halfOrder := mustModNScalar(h)
 	halfOrderMOne := new(ModNScalar).Add2(halfOrder, negOne)
 	halfOrderPOne := new(ModNScalar).Add2(halfOrder, oneModN)
 	lambdaMOne := new(ModNScalar).Add2(endoLambda, negOne)
@@ -1170,7 +1174,7 @@ func TestDecompressY(t *testing.T) {
 		// Decompress the test odd y coordinate for the given test x coordinate
 		// and ensure the returned validity flag matches the expected result.
 		var oddY FieldVal
-		fx := new(FieldVal).SetHex(test.x)
+		fx := mustFieldValWithOverflow(test.x)
 		valid := DecompressY(fx, true, &oddY)
 		if valid != test.valid {
 			t.Errorf("%s: unexpected valid flag -- got: %v, want: %v",
@@ -1194,7 +1198,7 @@ func TestDecompressY(t *testing.T) {
 		}
 
 		// Ensure the decompressed odd Y coordinate is the expected value.
-		wantOddY := new(FieldVal).SetHex(test.wantOddY)
+		wantOddY := mustFieldVal(test.wantOddY)
 		if !wantOddY.Equals(&oddY) {
 			t.Errorf("%s: mismatched odd y\ngot: %v, want: %v", test.name,
 				oddY, wantOddY)
@@ -1202,7 +1206,7 @@ func TestDecompressY(t *testing.T) {
 		}
 
 		// Ensure the decompressed even Y coordinate is the expected value.
-		wantEvenY := new(FieldVal).SetHex(test.wantEvenY)
+		wantEvenY := mustFieldVal(test.wantEvenY)
 		if !wantEvenY.Equals(&evenY) {
 			t.Errorf("%s: mismatched even y\ngot: %v, want: %v", test.name,
 				evenY, wantEvenY)
