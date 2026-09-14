@@ -1,4 +1,4 @@
-//go:build !amd64 || forceportable
+//go:build amd64 && !forceportable
 
 package gosecp
 
