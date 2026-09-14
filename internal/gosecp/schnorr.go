@@ -4,34 +4,32 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-
-	secp "github.com/allocz/secp256k1/internal/dcrsecp"
 )
 
 func schnorrKeyPairFromBytes(priv *PrivateKey, pub *PublicKey, privb []byte) {
 	priv.k.SetByteSlice(privb)
-	secp.ScalarBaseMultNonConst(&priv.k, &pub.p)
+	ScalarBaseMultNonConst(&priv.k, &pub.p)
 	pub.p.ToAffine()
 	if pub.p.Y.IsOdd() {
-		var privS secp.ModNScalar
+		var privS ModNScalar
 		privS.Set(&priv.k)
 		privS.Negate()
-		secp.ScalarBaseMultNonConst(&privS, &pub.p)
+		ScalarBaseMultNonConst(&privS, &pub.p)
 		pub.p.ToAffine()
 	}
 }
 
-func isOnCurve(fx, fy *secp.FieldVal) bool {
+func isOnCurve(fx, fy *FieldVal) bool {
 	// Elliptic curve equation for secp256k1 is: y^2 = x^3 + 7
-	y2 := new(secp.FieldVal).SquareVal(fy).Normalize()
-	result := new(secp.FieldVal).SquareVal(fx).Mul(fx).AddInt(7).Normalize()
+	y2 := new(FieldVal).SquareVal(fy).Normalize()
+	result := new(FieldVal).SquareVal(fx).Mul(fx).AddInt(7).Normalize()
 	return y2.Equals(result)
 }
 
 func schnorrSignExt(sig *SchnorrSignature, privKey *PrivateKey, msg []byte,
 	auxRandP *[32]byte, fastSign bool) error {
 
-	var privKeyScalar secp.ModNScalar
+	var privKeyScalar ModNScalar
 	privKeyScalar.Set(&privKey.k)
 	defer privKeyScalar.Zero()
 
@@ -44,7 +42,7 @@ func schnorrSignExt(sig *SchnorrSignature, privKey *PrivateKey, msg []byte,
 
 	var pubKeyBytes [33]byte
 	pub.ToBytes33(pubKeyBytes[:])
-	if pubKeyBytes[0] == secp.PubKeyFormatCompressedOdd {
+	if pubKeyBytes[0] == PubKeyFormatCompressedOdd {
 		privKeyScalar.Negate()
 	}
 
@@ -69,7 +67,7 @@ func schnorrSignExt(sig *SchnorrSignature, privKey *PrivateKey, msg []byte,
 		&rand, schnorrTagBIP0340Nonce, t[:], pubKeyBytes[1:], msg,
 	)
 
-	var kPrime secp.ModNScalar
+	var kPrime ModNScalar
 	kPrime.SetBytes((*[32]byte)(&rand))
 
 	if kPrime.IsZero() {
@@ -85,12 +83,12 @@ func schnorrSignExt(sig *SchnorrSignature, privKey *PrivateKey, msg []byte,
 	return nil
 }
 
-func schnorrSign(sig *SchnorrSignature, privKey, nonce *secp.ModNScalar,
+func schnorrSign(sig *SchnorrSignature, privKey, nonce *ModNScalar,
 	pubKey *PublicKey, hash []byte, fastSign bool) error {
 
-	var R secp.JacobianPoint
+	var R JacobianPoint
 	k := *nonce
-	secp.ScalarBaseMultNonConst(&k, &R)
+	ScalarBaseMultNonConst(&k, &R)
 
 	R.ToAffine()
 	if R.Y.IsOdd() {
@@ -103,13 +101,13 @@ func schnorrSign(sig *SchnorrSignature, privKey, nonce *secp.ModNScalar,
 	schnorrTaggedHash(&commitment, schnorrTagBIP0340Challenge,
 		R.X.Bytes()[:], pBytes[:], hash)
 
-	var e secp.ModNScalar
+	var e ModNScalar
 	if overflow := e.SetBytes((*[32]byte)(&commitment)); overflow != 0 {
 		k.Zero()
 		return fmt.Errorf("hash of (r || P || m) too big")
 	}
 
-	s := new(secp.ModNScalar).Mul2(&e, privKey).Add(&k)
+	s := new(ModNScalar).Mul2(&e, privKey).Add(&k)
 	k.Zero()
 
 	schnorrSignatureFromRS(sig, &R.X, s)
@@ -124,8 +122,8 @@ func schnorrSign(sig *SchnorrSignature, privKey, nonce *secp.ModNScalar,
 	return nil
 }
 
-func schnorrSignatureFromRS(sig *SchnorrSignature, r *secp.FieldVal,
-	s *secp.ModNScalar) {
+func schnorrSignatureFromRS(sig *SchnorrSignature, r *FieldVal,
+	s *ModNScalar) {
 
 	sig.r.Set(r).Normalize()
 	sig.s.Set(s)
@@ -205,7 +203,7 @@ const (
 	pubKeyBytesLen = 32
 )
 
-func schnorrParsePubKey(pub *secp.PublicKey, pubKeyStr []byte) error {
+func schnorrParsePubKey(pub *PublicKeyA, pubKeyStr []byte) error {
 	if pubKeyStr == nil {
 		err := fmt.Errorf("nil pubkey byte string")
 		return err
@@ -217,12 +215,12 @@ func schnorrParsePubKey(pub *secp.PublicKey, pubKeyStr []byte) error {
 		return err
 	}
 
-	var keyCompressed [secp.PubKeyBytesLenCompressed]byte
-	keyCompressed[0] = secp.PubKeyFormatCompressedEven
+	var keyCompressed [PubKeyBytesLenCompressed]byte
+	keyCompressed[0] = PubKeyFormatCompressedEven
 	copy(keyCompressed[1:], pubKeyStr)
 
-	var pub2 secp.PublicKey
-	err := secp.ParsePubKey(&pub2, keyCompressed[:])
+	var pub2 PublicKeyA
+	err := ParsePubKeyZeroAlloc(&pub2, keyCompressed[:])
 	if err != nil {
 		return err
 	}
@@ -241,7 +239,7 @@ func schnorrVerify(sig *SchnorrSignature, pub *PublicKey, msg []byte) bool {
 func schnorrVerify3(sig *SchnorrSignature, hash []byte,
 	pubKeyBytes []byte) error {
 
-	var pubKey secp.PublicKey
+	var pubKey PublicKeyA
 	err := schnorrParsePubKey(&pubKey, pubKeyBytes)
 	if err != nil {
 		return err
@@ -250,25 +248,27 @@ func schnorrVerify3(sig *SchnorrSignature, hash []byte,
 		return fmt.Errorf("pubkey point is not on curve")
 	}
 
+	var pubX, pubY FieldVal
+	pubKey.PutXY(&pubX, &pubY)
 	var rBytes [32]byte
 	sig.r.PutBytesUnchecked(rBytes[:])
 	var pubXBytes [32]byte
-	pubKey.Xf.PutBytes(&pubXBytes)
+	pubX.PutBytes(&pubXBytes)
 
 	var commitment schnorrHash
 	schnorrTaggedHash(&commitment, schnorrTagBIP0340Challenge, rBytes[:],
 		pubXBytes[:], hash)
 
-	var e secp.ModNScalar
+	var e ModNScalar
 	e.SetBytes((*[32]byte)(&commitment))
 
 	e.Negate()
 
-	var P, R, sG, eP secp.JacobianPoint
+	var P, R, sG, eP JacobianPoint
 	pubKey.AsJacobian(&P)
-	secp.ScalarBaseMultNonConst(&sig.s, &sG)
-	secp.ScalarMultNonConst(&e, &P, &eP)
-	secp.AddNonConst(&sG, &eP, &R)
+	ScalarBaseMultNonConst(&sig.s, &sG)
+	ScalarMultNonConst(&e, &P, &eP)
+	AddNonConst(&sG, &eP, &R)
 
 	if (R.X.IsZero() && R.Y.IsZero()) || R.Z.IsZero() {
 		return fmt.Errorf("calculated R point is the point at infinity")

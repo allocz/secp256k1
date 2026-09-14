@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	secp "github.com/allocz/secp256k1/internal/dcrsecp"
 	"github.com/allocz/secp256k1/internal/der"
 )
 
@@ -13,7 +12,7 @@ var (
 )
 
 type PrivateKey struct {
-	k secp.ModNScalar
+	k ModNScalar
 }
 
 func (p *PrivateKey) FromBytes32(data []byte) error {
@@ -33,7 +32,7 @@ func (p *PrivateKey) ToBytes32(data []byte) []byte {
 }
 
 type PublicKey struct {
-	p secp.JacobianPoint
+	p JacobianPoint
 }
 
 func (p *PublicKey) FromBytes32(data []byte) error {
@@ -44,7 +43,7 @@ func (p *PublicKey) FromBytes32(data []byte) error {
 	if overflow {
 		return fmt.Errorf("field value overflow")
 	}
-	ok := secp.DecompressY(&p.p.X, false, &p.p.Y)
+	ok := DecompressY(&p.p.X, false, &p.p.Y)
 	if !ok {
 		return fmt.Errorf("failed to decompress Y")
 	}
@@ -60,7 +59,7 @@ func (p *PublicKey) FromBytes33(data []byte) error {
 	if overflow {
 		return fmt.Errorf("field value overflow")
 	}
-	ok := secp.DecompressY(&p.p.X, data[0] == 0x03, &p.p.Y)
+	ok := DecompressY(&p.p.X, data[0] == 0x03, &p.p.Y)
 	if !ok {
 		return fmt.Errorf("failed to decompress Y")
 	}
@@ -120,13 +119,13 @@ func (p *PublicKey) ToBytes64(data []byte) []byte {
 }
 
 func (p *PublicKey) FromPrivateKey(priv *PrivateKey) error {
-	secp.ScalarBaseMultNonConst(&priv.k, &p.p)
+	ScalarBaseMultNonConst(&priv.k, &p.p)
 	p.p.ToAffine()
 	return nil
 }
 
 type ECDSASignature struct {
-	r, s secp.ModNScalar
+	r, s ModNScalar
 }
 
 func (e *ECDSASignature) FromBytes64(data []byte) error {
@@ -181,8 +180,8 @@ func (e *ECDSASignature) Verify(pub *PublicKey, hash []byte) bool {
 }
 
 type SchnorrSignature struct {
-	r secp.FieldVal
-	s secp.ModNScalar
+	r FieldVal
+	s ModNScalar
 }
 
 func SchnorrKeyPairFromBytes32(priv *PrivateKey, pub *PublicKey,
@@ -224,7 +223,6 @@ func (s *SchnorrSignature) SignExt(priv *PrivateKey, msg []byte,
 }
 
 func (s *SchnorrSignature) Sign(priv *PrivateKey, msg []byte) error {
-
 	return s.SignExt(priv, msg, nil, false)
 }
 

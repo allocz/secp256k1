@@ -1,26 +1,24 @@
+//go:build !amd64 || forceportable
+
 package gosecp
 
-import (
-	secp "github.com/allocz/secp256k1/internal/dcrsecp"
-	ecdsa "github.com/allocz/secp256k1/internal/dcrsecp/ecdsa"
-)
-
 func ecdsaSign(sig *ECDSASignature, priv *PrivateKey, hash []byte) {
-	priv2 := secp.PrivateKey{Key: priv.k}
+	priv2 := PrivateKeyA{Key: priv.k}
 	defer func() {
-		priv2 = secp.PrivateKey{}
+		priv2 = PrivateKeyA{}
 	}()
 
-	var sig2 ecdsa.Signature
-	ecdsa.Sign(&sig2, &priv2, hash)
-	sig.r = sig2.Rs
-	sig.s = sig2.Ss
+	var sig2 ECDSASignatureA
+	SignZeroAlloc(&sig2, &priv2, hash)
+	sig2.PutRS(&sig.r, &sig.s)
 }
 
 func ecdsaVerify(sig *ECDSASignature, pub *PublicKey, hash []byte) bool {
-	sig2 := ecdsa.Signature{Rs: sig.r, Ss: sig.s}
+	var sig2 ECDSASignatureA
+	sig2.SetRS(&sig.r, &sig.s)
 
-	pub2 := secp.PublicKey{Xf: pub.p.X, Yf: pub.p.Y}
+	var pub2 PublicKeyA
+	pub2.SetXY(&pub.p.X, &pub.p.Y)
 
 	return sig2.Verify(hash, &pub2)
 }
